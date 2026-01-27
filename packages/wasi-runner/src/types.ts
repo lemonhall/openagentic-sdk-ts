@@ -13,6 +13,7 @@ export type WasiExecInput = {
   env?: Record<string, string>;
   cwd?: string;
   stdin?: Uint8Array;
+  netFetch?: import("./netfetch.js").NetFetch;
   limits?: WasiLimits;
 };
 
@@ -27,4 +28,3 @@ export type WasiExecResult = {
 export interface WasiRunner {
   execModule(input: WasiExecInput): Promise<WasiExecResult>;
 }
-

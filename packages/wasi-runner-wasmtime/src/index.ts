@@ -94,3 +94,5 @@ export class WasmtimeWasiRunner implements WasiRunner {
     };
   }
 }
+
+export { createServerNetFetch } from "./netfetch.js";
