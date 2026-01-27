@@ -24,7 +24,18 @@ On the server you can add an **outer sandbox** around the WASI runner process (�
 
 This is useful when you want stronger isolation than “only preopen the shadow dir”, without introducing a second toolchain.
 
-## Sequence diagram (server with Bubblewrap)
+## Terminology (to avoid confusion)
+
+This project separates two concepts:
+
+- **Execution engine**: *what* actually runs the tools (today: WASI via `wasmtime`).
+- **Sandbox technology**: *how* the runner process is constrained (today: optional Bubblewrap).
+
+Bubblewrap (`bwrap`) is a **process sandbox**. It does not run tools by itself; it wraps another program (e.g. `wasmtime`, or a native tool runner) and restricts its filesystem/network view.
+
+So if you enable Bubblewrap in the current implementation, you will still see `wasmtime` in the execution chain — by design — because WASI is still the execution engine that keeps browser/server semantics aligned.
+
+## Sequence diagram (server: WASI engine + Bubblewrap outer sandbox)
 
 ```mermaid
 sequenceDiagram
@@ -56,6 +67,15 @@ sequenceDiagram
   TR-->>A: tool result
   A-->>U: assistant message
 ```
+
+## Alternative design (not implemented): Bubblewrap-native engine
+
+If you want Bubblewrap and WASI to be “peers” in the sense of **choosing one engine or the other**, that implies a second execution engine on the server:
+
+- `WASI engine`: runs signed WASI tool bundles (portable; matches browser).
+- `Native engine`: runs host-native binaries under Bubblewrap (Linux-only; does not match browser semantics unless you also ship a Linux userland bundle strategy).
+
+This repo does **not** implement the native engine today. v5 only adds the *outer sandbox adapter* so deployments can harden the existing WASI path.
 
 ## Bubblewrap (`bwrap`) outer sandbox (Linux-only)
 

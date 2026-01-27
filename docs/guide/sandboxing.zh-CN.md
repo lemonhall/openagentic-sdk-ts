@@ -27,7 +27,18 @@ OpenAgentic SDK TS 的目标是同时做到两件事：
 
 这样做的价值是：在不引入“第二套工具链”的前提下，获得更强的进程级隔离能力（文件系统视图、网络命名空间等）。
 
-## 时序图（服务器侧 + Bubblewrap）
+## 术语澄清（避免误会）
+
+本项目把两个概念分开：
+
+- **执行引擎（execution engine）**：真正“跑工具”的东西（当前是 WASI，通过 `wasmtime` 执行 WASI tool bundles）。
+- **沙箱技术（sandbox technology）**：用什么手段去约束/隔离 runner 进程（当前是可选 Bubblewrap）。
+
+Bubblewrap（`bwrap`）本质是一个 **进程沙箱**：它自己并不会“运行工具”，而是把某个程序（例如 `wasmtime`，或未来的 native runner）包起来，并限制它能看到的文件系统/网络等。
+
+因此：在当前实现里开启 Bubblewrap 时，链路里仍然会出现 `wasmtime` —— 这是刻意的设计选择，因为 WASI 仍是执行引擎，用来保证浏览器/服务器的工具语义尽量一致。
+
+## 时序图（服务器侧：WASI 执行引擎 + Bubblewrap 外层沙箱）
 
 ```mermaid
 sequenceDiagram
@@ -59,6 +70,15 @@ sequenceDiagram
   TR-->>A: 工具结果
   A-->>U: 助手回复
 ```
+
+## 另一种设计（未实现）：Bubblewrap-native 执行引擎
+
+如果你希望 Bubblewrap 与 WASI 在“选择其一”意义上是平级的（即启用 Bubblewrap 就完全不依赖 WASI 技术栈），那就意味着服务器侧需要第二套执行引擎：
+
+- `WASI 引擎`：执行签名的 WASI tool bundles（可移植；与浏览器对齐）。
+- `Native 引擎`：在 Bubblewrap 中执行宿主机原生命令/二进制（Linux-only；除非再引入一套 Linux userland/toolchain 分发策略，否则很难与浏览器语义对齐）。
+
+当前仓库 **没有实现** native 引擎。v5 只实现了“外层沙箱适配器”，用于加固现有的 WASI 路径。
 
 ## Bubblewrap（`bwrap`）外层沙箱（仅 Linux）
 
@@ -153,4 +173,3 @@ pnpm -C packages/demo-node start -- --project . --once "Use Bash to run: echo hi
 - `OPENAGENTIC_BWRAP_PATH=bwrap`（可选：指定 bwrap 路径）
 - `OPENAGENTIC_BWRAP_NETWORK=allow|deny`（可选：是否禁网）
 - `OPENAGENTIC_BWRAP_RO_BINDS=/usr,/bin,/lib,/lib64,/etc`（可选：额外 ro-bind 列表）
-
