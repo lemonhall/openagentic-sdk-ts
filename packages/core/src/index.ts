@@ -6,3 +6,9 @@ export { rebuildChatMessages, rebuildResponsesInput } from "./replay/rebuild.js"
 export type { SessionStore } from "./session/store.js";
 export { JsonlSessionStore } from "./session/jsonl.js";
 export type { JsonlBackend } from "./session/jsonl.js";
+
+export type { Tool, ToolCall, ToolContext } from "./tools/types.js";
+export { ToolRegistry } from "./tools/registry.js";
+export type { ApprovalResult, PermissionContext, PermissionQuestion } from "./permissions/gate.js";
+export { AskOncePermissionGate } from "./permissions/gate.js";
+export { ToolRunner } from "./runtime/tool-runner.js";

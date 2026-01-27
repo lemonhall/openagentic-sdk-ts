@@ -43,6 +43,19 @@ export type ToolResultEvent = EventBase & {
   errorMessage?: string;
 };
 
+export type PermissionQuestionEvent = EventBase & {
+  type: "permission.question";
+  questionId: string;
+  toolName: string;
+  prompt: string;
+};
+
+export type PermissionDecisionEvent = EventBase & {
+  type: "permission.decision";
+  questionId: string;
+  allowed: boolean;
+};
+
 export type ResultEvent = EventBase & {
   type: "result";
   finalText: string;
@@ -57,7 +70,8 @@ export type Event =
   | AssistantDeltaEvent
   | ToolUseEvent
   | ToolResultEvent
+  | PermissionQuestionEvent
+  | PermissionDecisionEvent
   | ResultEvent
   // forward-compatible catch-all
   | EventBase;
-
