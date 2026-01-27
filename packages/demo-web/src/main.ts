@@ -9,6 +9,7 @@ import {
 } from "@openagentic/workspace";
 
 import { createBrowserAgent } from "./agent.js";
+import { createController } from "./controller.js";
 import { reduceChatState } from "./state.js";
 
 import "./styles.css";
@@ -84,15 +85,13 @@ async function main(): Promise<void> {
   const commitDirEl = document.querySelector<HTMLButtonElement>("#commitDir")!;
 
   let state = { messages: [] as Array<{ role: "user" | "assistant"; text: string; streaming?: boolean }> };
-  let sessionId: string | undefined;
   let realDirHandle: FileSystemDirectoryHandle | null = null;
 
   const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
 
-  const opfsRoot = await getOpfsRootDirectory();
-  const demoDir = await (opfsRoot as any).getDirectoryHandle("openagentic-demo-web", { create: true });
-  const workspace = new OpfsWorkspace(demoDir as any);
-  let baseSnapshot: Snapshot = await snapshotWorkspace(workspace);
+  let workspace: OpfsWorkspace | null = null;
+  let baseSnapshot: Snapshot | null = null;
+  let workspaceInit: Promise<void> | null = null;
 
   function setStatus(text: string): void {
     statusEl.textContent = text;
@@ -110,6 +109,8 @@ async function main(): Promise<void> {
   }
 
   async function refreshFiles(): Promise<void> {
+    await ensureWorkspace();
+    if (!workspace) return;
     const ents: WorkspaceEntry[] = await workspace.listDir("");
     filesEl.innerHTML = ents.length ? "" : `<div class="oaMuted">(empty)</div>`;
     for (const e of ents) {
@@ -120,43 +121,50 @@ async function main(): Promise<void> {
     }
   }
 
-  async function runTurn(userText: string): Promise<void> {
-    const agent = createBrowserAgent({
-      sessionStore,
-      workspace,
-      model: modelEl.value.trim() || "gpt-4o-mini",
-      providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
-    });
-
-    for await (const ev of agent.runtime.runTurn({ sessionId, userText })) {
-      if (ev.type === "system.init") sessionId = (ev as any).sessionId as string;
-      if (ev.type === "assistant.delta") {
-        state = reduceChatState(state as any, { type: "assistant_delta", delta: String((ev as any).textDelta ?? "") }) as any;
-        render();
-      } else if (ev.type === "assistant.message") {
-        state = reduceChatState(state as any, { type: "assistant_final", text: String((ev as any).text ?? "") }) as any;
-        render();
-      }
+  async function ensureWorkspace(): Promise<void> {
+    if (workspace) return;
+    if (!workspaceInit) {
+      workspaceInit = (async () => {
+        const opfsRoot = await getOpfsRootDirectory();
+        const demoDir = await (opfsRoot as any).getDirectoryHandle("openagentic-demo-web", { create: true });
+        workspace = new OpfsWorkspace(demoDir as any);
+        baseSnapshot = await snapshotWorkspace(workspace);
+      })();
     }
-
-    await refreshFiles();
+    await workspaceInit;
   }
 
+  const controller = createController({
+    ensureRuntime: async () => {
+      await ensureWorkspace();
+      if (!workspace) throw new Error("OPFS workspace init failed");
+      const agent = createBrowserAgent({
+        sessionStore,
+        workspace,
+        model: modelEl.value.trim() || "gpt-4o-mini",
+        providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
+      });
+      return { runtime: agent.runtime, refreshFiles };
+    },
+    onUserMessage: (t) => {
+      state = reduceChatState(state as any, { type: "user_message", text: t }) as any;
+      render();
+    },
+    onAssistantDelta: (delta) => {
+      state = reduceChatState(state as any, { type: "assistant_delta", delta }) as any;
+      render();
+    },
+    onAssistantFinal: (text) => {
+      state = reduceChatState(state as any, { type: "assistant_final", text }) as any;
+      render();
+    },
+    setStatus: (t) => setStatus(t),
+  });
+
   sendEl.addEventListener("click", async () => {
-    const text = promptEl.value.trim();
-    if (!text) return;
+    const text = promptEl.value;
     promptEl.value = "";
-
-    state = reduceChatState(state as any, { type: "user_message", text }) as any;
-    render();
-
-    try {
-      setStatus("running...");
-      await runTurn(text);
-      setStatus(sessionId ? `session: ${sessionId}` : "ok");
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e));
-    }
+    await controller.send(text);
   });
 
   chooseDirEl.addEventListener("click", async () => {
@@ -170,43 +178,60 @@ async function main(): Promise<void> {
   });
 
   importDirEl.addEventListener("click", async () => {
-    if (!realDirHandle) {
-      setStatus("choose a directory first");
-      return;
+    try {
+      if (!realDirHandle) {
+        setStatus("choose a directory first");
+        return;
+      }
+      setStatus("importing...");
+      await ensureWorkspace();
+      if (!workspace) throw new Error("OPFS workspace init failed");
+      await importFromDirectoryHandle(realDirHandle as any, workspace, {
+        filter: (path, kind) => {
+          if (path.startsWith(".openagentic/")) return false;
+          if (kind === "dir" && path === ".openagentic") return false;
+          return true;
+        },
+      });
+      baseSnapshot = await snapshotWorkspace(workspace);
+      await refreshFiles();
+      setStatus("imported to OPFS");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
     }
-    setStatus("importing...");
-    await importFromDirectoryHandle(realDirHandle as any, workspace, {
-      filter: (path, kind) => {
-        if (path.startsWith(".openagentic/")) return false;
-        if (kind === "dir" && path === ".openagentic") return false;
-        return true;
-      },
-    });
-    baseSnapshot = await snapshotWorkspace(workspace);
-    await refreshFiles();
-    setStatus("imported to OPFS");
   });
 
   commitDirEl.addEventListener("click", async () => {
-    if (!realDirHandle) {
-      setStatus("choose a directory first");
-      return;
+    try {
+      if (!realDirHandle) {
+        setStatus("choose a directory first");
+        return;
+      }
+      setStatus("computing changes...");
+      await ensureWorkspace();
+      if (!workspace || !baseSnapshot) throw new Error("OPFS workspace is not initialized");
+      const { changeSet } = await commitToDirectoryHandle(realDirHandle as any, workspace, baseSnapshot, {
+        approve: async (cs) => {
+          const msg = `Commit changes?\\n\\n+${cs.adds.length} ~${cs.modifies.length} -${cs.deletes.length}`;
+          return window.confirm(msg);
+        },
+      });
+      baseSnapshot = await snapshotWorkspace(workspace);
+      await refreshFiles();
+      setStatus(`committed: +${changeSet.adds.length} ~${changeSet.modifies.length} -${changeSet.deletes.length}`);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
     }
-    setStatus("computing changes...");
-    const { changeSet } = await commitToDirectoryHandle(realDirHandle as any, workspace, baseSnapshot, {
-      approve: async (cs) => {
-        const msg = `Commit changes?\\n\\n+${cs.adds.length} ~${cs.modifies.length} -${cs.deletes.length}`;
-        return window.confirm(msg);
-      },
-    });
-    baseSnapshot = await snapshotWorkspace(workspace);
-    await refreshFiles();
-    setStatus(`committed: +${changeSet.adds.length} ~${changeSet.modifies.length} -${changeSet.deletes.length}`);
   });
 
-  await refreshFiles();
   render();
-  setStatus("ready");
+  setStatus("ready (click Send to initialize OPFS)");
+
+  // Best-effort warmup so failures show up in status, but never block UI wiring.
+  ensureWorkspace()
+    .then(refreshFiles)
+    .then(() => setStatus("ready"))
+    .catch((e) => setStatus(e instanceof Error ? e.message : String(e)));
 }
 
 main().catch((e) => {
