@@ -8,6 +8,8 @@ Tools operate on a *shadow workspace* (in-memory on Node demos, OPFS in browser 
 
 WASI is the portable baseline sandbox. On the server you can optionally add a second isolation boundary around the WASI runner process (“sandbox stacking”).
 
+See `docs/guide/sandboxing.md` for the full model.
+
 ### Bubblewrap (`bwrap`) (Linux-only)
 
 The Node demo can run `wasmtime` under Bubblewrap:
