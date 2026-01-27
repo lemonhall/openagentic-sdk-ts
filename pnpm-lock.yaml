@@ -17,6 +17,56 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.19.7)
 
+  packages/wasi-runner:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.4
+        version: 22.19.7
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.7)
+      wabt:
+        specifier: ^1.0.37
+        version: 1.0.39
+
+  packages/wasi-runner-wasmtime:
+    dependencies:
+      '@openagentic/wasi-runner':
+        specifier: workspace:*
+        version: link:../wasi-runner
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.4
+        version: 22.19.7
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.7)
+      wabt:
+        specifier: ^1.0.37
+        version: 1.0.39
+
+  packages/wasi-runner-web:
+    dependencies:
+      '@openagentic/wasi-runner':
+        specifier: workspace:*
+        version: link:../wasi-runner
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.7)
+      wabt:
+        specifier: ^1.0.37
+        version: 1.0.39
+
   packages/workspace:
     devDependencies:
       '@types/node':
@@ -514,6 +564,10 @@ packages:
       jsdom:
         optional: true
 
+  wabt@1.0.39:
+    resolution: {integrity: sha512-ba+dRL/75VQQY7RkU/CgriGbkoWAfS8TDyUlJfJhJ8KhtXgMl5dhNvoPNUcQ9IWRhW8u41glMSuZeTvsYq2rRg==}
+    hasBin: true
+
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
@@ -906,6 +960,8 @@ snapshots:
       - sugarss
       - supports-color
       - terser
+
+  wabt@1.0.39: {}
 
   why-is-node-running@2.3.0:
     dependencies:
