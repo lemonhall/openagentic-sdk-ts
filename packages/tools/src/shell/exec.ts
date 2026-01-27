@@ -1,6 +1,5 @@
 import type { Workspace } from "@openagentic/workspace";
 
-import type { CommandTool } from "../command.js";
 import type { SequenceNode, WordToken } from "./parser.js";
 
 export type ShellExecOptions = {
@@ -13,6 +12,10 @@ export type ShellExecResult = {
   stdout: string;
   stderr: string;
 };
+
+export type ShellCommandResult = ShellExecResult & { cwd?: string };
+
+export type ShellCommandRunner = (argv: string[], io: { env: Record<string, string>; cwd: string; stdin?: string }, deps: { workspace: Workspace }) => Promise<ShellCommandResult>;
 
 function expandVars(token: string, env: Record<string, string>): string {
   return token.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (_m, name) => env[name] ?? "");
@@ -61,11 +64,11 @@ async function tokensToArgv(tokens: WordToken[], env: Record<string, string>, wo
 export async function execSequence(
   ast: SequenceNode,
   opts: ShellExecOptions,
-  deps: { command: CommandTool; workspace: Workspace },
+  deps: { runCommand: ShellCommandRunner; workspace: Workspace },
 ): Promise<ShellExecResult> {
   const env = opts.env ?? {};
-  const cwd = opts.cwd ?? "";
-  const { command, workspace } = deps;
+  const state = { cwd: opts.cwd ?? "" };
+  const { runCommand, workspace } = deps;
 
   const runPipeline = async (pipeline: SequenceNode["head"]): Promise<ShellExecResult> => {
     let stdin: string | undefined;
@@ -75,24 +78,22 @@ export async function execSequence(
 
     for (let i = 0; i < pipeline.commands.length; i++) {
       const cmd = pipeline.commands[i];
-      const argv = await tokensToArgv(cmd.argv, env, workspace, cwd);
+      const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd);
 
       // Apply input redirection on first command only (v1 simplification).
       for (const r of cmd.redirs) {
         if (r.kind !== "in") continue;
-        const [p0] = await tokenToWords(r.path, env, workspace, cwd);
+        const [p0] = await tokenToWords(r.path, env, workspace, state.cwd);
         const bytes = await workspace.readFile(p0);
         stdin = new TextDecoder().decode(bytes);
       }
 
       try {
-        const out = (await command.run(
-          { argv, cwd, env, stdin, limits: { maxStdoutBytes: 1024 * 1024, maxStderrBytes: 1024 * 1024 } },
-          { sessionId: "shell", toolUseId: `shell:${i}`, workspace } as any,
-        )) as any;
+        const out = await runCommand(argv, { env, cwd: state.cwd, stdin }, { workspace });
         lastExit = Number(out.exitCode ?? 0);
         lastStdout = String(out.stdout ?? "");
         lastStderr = String(out.stderr ?? "");
+        if (typeof out.cwd === "string") state.cwd = out.cwd;
         stdin = lastStdout;
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
@@ -108,7 +109,7 @@ export async function execSequence(
     const last = pipeline.commands.at(-1)!;
     for (const r of last.redirs) {
       if (r.kind !== "out" && r.kind !== "append") continue;
-      const [p0] = await tokenToWords(r.path, env, workspace, cwd);
+      const [p0] = await tokenToWords(r.path, env, workspace, state.cwd);
       const data = new TextEncoder().encode(lastStdout);
       if (r.kind === "append") {
         const existing = await workspace.readFile(p0).catch(() => new Uint8Array());

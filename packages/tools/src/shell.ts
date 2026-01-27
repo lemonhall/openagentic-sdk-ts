@@ -30,8 +30,16 @@ export class ShellTool implements Tool {
     const cwd = typeof input.cwd === "string" ? input.cwd : "";
 
     const ast = parse(script);
-    const res = await execSequence(ast, { env, cwd }, { command: this.#command, workspace });
+    const res = await execSequence(ast, { env, cwd }, {
+      workspace,
+      runCommand: async (argv, io, deps) => {
+        const out = (await this.#command.run(
+          { argv, cwd: io.cwd, env: io.env, stdin: io.stdin, limits: { maxStdoutBytes: 1024 * 1024, maxStderrBytes: 1024 * 1024 } },
+          { sessionId: ctx.sessionId, toolUseId: `${ctx.toolUseId}:cmd`, workspace: deps.workspace } as any,
+        )) as any;
+        return { exitCode: Number(out.exitCode ?? 0), stdout: String(out.stdout ?? ""), stderr: String(out.stderr ?? "") };
+      },
+    });
     return res;
   }
 }
-
