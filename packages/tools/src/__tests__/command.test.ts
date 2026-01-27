@@ -144,4 +144,58 @@ describe("CommandTool", () => {
     const out = (await tool.run({ argv: ["ls"] }, { sessionId: "s", toolUseId: "t", workspace } as any)) as any;
     expect(out.stdout).toBe("a.txt\nb.txt\n");
   });
+
+  it("can cp/mv/rm using the sample core-utils bundle", async () => {
+    const root = sampleBundleRoot();
+    const manifestRaw = JSON.parse(
+      await readFile(join(root, "bundles", "core-utils", "0.0.0", "manifest.json"), "utf8"),
+    ) as unknown;
+    const manifest = parseBundleManifest(manifestRaw);
+    const bundle: InstalledBundle = { manifest, rootPath: "bundles/core-utils/0.0.0" };
+
+    const tool = new CommandTool({
+      runner: new InProcessWasiRunner(),
+      bundles: [bundle],
+      cache: fileCache(root),
+    });
+
+    const workspace = new MemoryWorkspace();
+    await workspace.writeFile("a.txt", new TextEncoder().encode("hello\n"));
+
+    const outCp = (await tool.run({ argv: ["cp", "a.txt", "b.txt"] }, { sessionId: "s", toolUseId: "t", workspace } as any)) as any;
+    expect(outCp.exitCode).toBe(0);
+    expect(new TextDecoder().decode(await workspace.readFile("b.txt"))).toBe("hello\n");
+
+    const outMv = (await tool.run({ argv: ["mv", "b.txt", "c.txt"] }, { sessionId: "s", toolUseId: "t2", workspace } as any)) as any;
+    expect(outMv.exitCode).toBe(0);
+    await expect(workspace.readFile("b.txt")).rejects.toThrow();
+    expect(new TextDecoder().decode(await workspace.readFile("c.txt"))).toBe("hello\n");
+
+    const outRm = (await tool.run({ argv: ["rm", "c.txt"] }, { sessionId: "s", toolUseId: "t3", workspace } as any)) as any;
+    expect(outRm.exitCode).toBe(0);
+    await expect(workspace.readFile("c.txt")).rejects.toThrow();
+  });
+
+  it("can wc from the sample core-utils bundle", async () => {
+    const root = sampleBundleRoot();
+    const manifestRaw = JSON.parse(
+      await readFile(join(root, "bundles", "core-utils", "0.0.0", "manifest.json"), "utf8"),
+    ) as unknown;
+    const manifest = parseBundleManifest(manifestRaw);
+    const bundle: InstalledBundle = { manifest, rootPath: "bundles/core-utils/0.0.0" };
+
+    const tool = new CommandTool({
+      runner: new InProcessWasiRunner(),
+      bundles: [bundle],
+      cache: fileCache(root),
+    });
+
+    const workspace = new MemoryWorkspace();
+    const out = (await tool.run(
+      { argv: ["wc"], stdin: "a\nb\nc\n" },
+      { sessionId: "s", toolUseId: "t", workspace } as any,
+    )) as any;
+    expect(out.exitCode).toBe(0);
+    expect(out.stdout).toBe("3 6\n");
+  });
 });

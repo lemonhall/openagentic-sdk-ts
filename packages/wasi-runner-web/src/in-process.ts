@@ -36,6 +36,7 @@ const WASI_ERRNO_SUCCESS = 0;
 const WASI_ERRNO_BADF = 8;
 const WASI_ERRNO_INVAL = 28;
 const WASI_ERRNO_NOENT = 44;
+const WASI_ERRNO_EXIST = 20;
 const WASI_PREOPEN_FD = 3;
 
 const WASI_OFLAGS_CREAT = 1 << 0;
@@ -380,6 +381,41 @@ export class InProcessWasiRunner implements WasiRunner {
           const fd = nextFd++;
           handles.set(fd, { kind: "file", path: normalized, offset: 0 });
           writeU32(openedFdPtr, fd);
+          return WASI_ERRNO_SUCCESS;
+        },
+        path_unlink_file(dirfd: number, pathPtr: number, pathLen: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const h = handles.get(dirfd);
+          if (!h || h.kind !== "dir") return WASI_ERRNO_BADF;
+          const raw = readString(pathPtr, pathLen);
+          const normalized = normalizeSandboxPath(raw);
+          if (!normalized) return WASI_ERRNO_INVAL;
+          if (!fsFiles.has(normalized)) return WASI_ERRNO_NOENT;
+          fsFiles.delete(normalized);
+          return WASI_ERRNO_SUCCESS;
+        },
+        path_rename(
+          oldDirfd: number,
+          oldPathPtr: number,
+          oldPathLen: number,
+          newDirfd: number,
+          newPathPtr: number,
+          newPathLen: number,
+        ) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const h1 = handles.get(oldDirfd);
+          const h2 = handles.get(newDirfd);
+          if (!h1 || h1.kind !== "dir" || !h2 || h2.kind !== "dir") return WASI_ERRNO_BADF;
+          const oldRaw = readString(oldPathPtr, oldPathLen);
+          const newRaw = readString(newPathPtr, newPathLen);
+          const oldP = normalizeSandboxPath(oldRaw);
+          const newP = normalizeSandboxPath(newRaw);
+          if (!oldP || !newP) return WASI_ERRNO_INVAL;
+          const bytes = fsFiles.get(oldP);
+          if (!bytes) return WASI_ERRNO_NOENT;
+          if (fsFiles.has(newP)) return WASI_ERRNO_EXIST;
+          fsFiles.set(newP, bytes);
+          fsFiles.delete(oldP);
           return WASI_ERRNO_SUCCESS;
         },
       },
