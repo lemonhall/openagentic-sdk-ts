@@ -36,6 +36,15 @@ export type WasiExecResult = {
   truncatedStderr: boolean;
   fs?: WasiFsSnapshot;
   netFetchAudits?: import("./netfetch.js").NetFetchAuditRecord[];
+  sandboxAudits?: SandboxAuditRecord[];
+};
+
+export type SandboxAuditRecord = {
+  kind: "process-sandbox";
+  wrapperName: string;
+  wrappedCmd: string;
+  wrappedArgs: string[];
+  mounts?: { label?: string; guestPath: string; mode: "rw" | "ro" }[];
 };
 
 export interface WasiRunner {

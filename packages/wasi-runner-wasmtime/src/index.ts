@@ -3,10 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 
-import type { WasiExecInput, WasiExecResult, WasiRunner } from "@openagentic/wasi-runner";
+import type { SandboxAuditRecord, WasiExecInput, WasiExecResult, WasiRunner } from "@openagentic/wasi-runner";
 
 import { writeSnapshotToDir, readSnapshotFromDir } from "./snapshot-io.js";
 import { buildWasmtimeCliArgs } from "./wasmtime-args.js";
+import type { ProcessSandbox } from "./process-sandbox.js";
+import { applyProcessSandbox } from "./process-sandbox.js";
 
 function findInPath(cmd: string): string | null {
   const sep = process.platform === "win32" ? ";" : ":";
@@ -35,11 +37,25 @@ function concat(chunks: Uint8Array[]): Uint8Array {
   return out;
 }
 
+function toStringEnv(inputEnv: NodeJS.ProcessEnv): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(inputEnv)) {
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
+}
+
 export class WasmtimeWasiRunner implements WasiRunner {
   readonly wasmtimePath: string;
+  readonly processSandbox?: ProcessSandbox;
 
-  constructor(wasmtimePath?: string) {
-    this.wasmtimePath = wasmtimePath || process.env.WASMTIME || findInPath("wasmtime") || "wasmtime";
+  constructor(options?: string | { wasmtimePath?: string; processSandbox?: ProcessSandbox }) {
+    const wasmtimePath =
+      typeof options === "string"
+        ? options
+        : options?.wasmtimePath || process.env.WASMTIME || findInPath("wasmtime") || "wasmtime";
+    this.wasmtimePath = wasmtimePath;
+    this.processSandbox = typeof options === "string" ? undefined : options?.processSandbox;
   }
 
   async execModule(input: WasiExecInput): Promise<WasiExecResult> {
@@ -51,6 +67,7 @@ export class WasmtimeWasiRunner implements WasiRunner {
 
     const dir = await mkdtemp(join(tmpdir(), "oas-wasi-"));
     let fsOut: WasiExecResult["fs"] | undefined;
+    const sandboxAudits: SandboxAuditRecord[] = [];
     try {
       const wasmPath = join(dir, "module.wasm");
       await writeFile(wasmPath, input.module.bytes);
@@ -77,7 +94,28 @@ export class WasmtimeWasiRunner implements WasiRunner {
       let truncatedStderr = false;
 
       const exitCode = await new Promise<number>((resolve, reject) => {
-        const cp = spawn(this.wasmtimePath, args, { stdio: ["pipe", "pipe", "pipe"] });
+        const sandboxed = applyProcessSandbox({
+          sandbox: this.processSandbox,
+          command: {
+            cmd: this.wasmtimePath,
+            args,
+            env: toStringEnv(process.env),
+            mounts: [
+              { kind: "dir", label: "runner-tmp", hostPath: dir, guestPath: "/__runner__", mode: "rw" },
+              ...(preopenDir
+                ? [{ kind: "dir" as const, label: "shadow-workspace", hostPath: preopenDir, guestPath: "/workspace", mode: "rw" }]
+                : []),
+            ],
+          },
+          redactHostPaths: [dir, preopenDir].filter(Boolean) as string[],
+        });
+        if (sandboxed.audit) sandboxAudits.push(sandboxed.audit);
+
+        const cp = spawn(sandboxed.spawn.cmd, sandboxed.spawn.args, {
+          stdio: ["pipe", "pipe", "pipe"],
+          env: sandboxed.spawn.env,
+          cwd: sandboxed.spawn.cwd,
+        });
         cp.on("error", reject);
         if (input.stdin && input.stdin.byteLength > 0) {
           cp.stdin.write(Buffer.from(input.stdin));
@@ -113,6 +151,7 @@ export class WasmtimeWasiRunner implements WasiRunner {
         truncatedStdout,
         truncatedStderr,
         fs: fsOut,
+        sandboxAudits: sandboxAudits.length ? sandboxAudits : undefined,
       };
     } finally {
       await rm(dir, { recursive: true, force: true });

@@ -1,4 +1,12 @@
-export type { WasiExecInput, WasiExecResult, WasiFsSnapshot, WasiLimits, WasiModuleRef, WasiRunner } from "./types.js";
+export type {
+  SandboxAuditRecord,
+  WasiExecInput,
+  WasiExecResult,
+  WasiFsSnapshot,
+  WasiLimits,
+  WasiModuleRef,
+  WasiRunner,
+} from "./types.js";
 export type {
   NetFetch,
   NetFetchAuditRecord,
