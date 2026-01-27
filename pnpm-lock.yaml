@@ -33,6 +33,31 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.19.7)
 
+  packages/tools:
+    dependencies:
+      '@openagentic/bundles':
+        specifier: workspace:*
+        version: link:../bundles
+      '@openagentic/sdk-core':
+        specifier: workspace:*
+        version: link:../core
+      '@openagentic/wasi-runner':
+        specifier: workspace:*
+        version: link:../wasi-runner
+    devDependencies:
+      '@openagentic/wasi-runner-web':
+        specifier: workspace:*
+        version: link:../wasi-runner-web
+      '@types/node':
+        specifier: ^22.13.4
+        version: 22.19.7
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.7)
+
   packages/wasi-runner:
     devDependencies:
       '@types/node':
