@@ -12,4 +12,4 @@ The centerpiece is a **tool-first agent runtime**: sessions are event-sourced, r
 
 - Project vision + core design: `docs/plan/2026-01-27-vision-and-core-design.md`
 - v1 executable plans index: `docs/plan/index.md`
-
+- User guides + quickstarts: `docs/guide/README.md`
