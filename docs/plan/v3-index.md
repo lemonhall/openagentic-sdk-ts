@@ -39,7 +39,6 @@ v3 closes this gap while keeping the v2 demo UX and security model (shadow works
 
 ## Optional v3+ extensions (tracked, not required)
 
-- `python` bundle (CPython-in-WASI or Pyodide-style packaging; policy + size/limits required)
+- `python` runtime bundle + `Python` tool: `v3-feature-06-python-runtime-bundle.md` (phased: MicroPython first, CPython later)
 - `WebSearch` in browser via a proxy endpoint (avoid exposing Tavily key)
 - Bundle dependency graph + version pinning/lockfiles
-

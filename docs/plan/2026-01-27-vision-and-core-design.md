@@ -164,7 +164,7 @@ Browser caches bundles in OPFS; server caches them in a configured local directo
 - Provider API surface: match Python (`query/run/query_messages`) vs. TS-idiomatic streaming primitives.
 - Exact event schema: JSONL portability, forward compatibility, and compacting strategy.
 - WASI in browser: choose a shim/runtime and define the hostcall surface (FS + fetch + time + randomness).
-- Python-in-WASI expectations: footprint, stdlib coverage, package management policy, and limits.
+- Python-in-WASI expectations: footprint, stdlib coverage, package management policy, and limits (tracked as `docs/plan/v3-feature-06-python-runtime-bundle.md`).
 
 ## Next milestone (v3)
 
