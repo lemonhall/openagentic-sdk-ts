@@ -11,6 +11,7 @@ import {
 import { createBrowserAgent } from "./agent.js";
 import { createController } from "./controller.js";
 import { clearDirectoryHandle } from "./fs-utils.js";
+import { shouldSubmitOnKeydown } from "./composer.js";
 import { reduceChatState } from "./state.js";
 
 import "./styles.css";
@@ -166,10 +167,21 @@ async function main(): Promise<void> {
     setStatus: (t) => setStatus(t),
   });
 
-  sendEl.addEventListener("click", async () => {
+  async function sendCurrentPrompt(): Promise<void> {
     const text = promptEl.value;
     promptEl.value = "";
     await controller.send(text);
+  }
+
+  sendEl.addEventListener("click", async () => {
+    await sendCurrentPrompt();
+  });
+
+  promptEl.addEventListener("keydown", async (e) => {
+    const ev = e as KeyboardEvent;
+    if (!shouldSubmitOnKeydown(ev)) return;
+    ev.preventDefault();
+    await sendCurrentPrompt();
   });
 
   chooseDirEl.addEventListener("click", async () => {
