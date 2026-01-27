@@ -3,10 +3,12 @@ import type { Workspace } from "@openagentic/workspace";
 
 import { execSequence } from "../shell/exec.js";
 import { parse } from "../shell/parser.js";
+import type { CommandTool } from "../command.js";
 import { runBuiltin } from "./builtins.js";
 
 export type BashToolOptions = {
   maxOutputBytes?: number;
+  wasiCommand?: CommandTool;
 };
 
 function truncateBytes(s: string, maxBytes: number): { text: string; truncated: boolean } {
@@ -30,10 +32,12 @@ export class BashTool implements Tool {
   };
 
   readonly #maxOutputBytes: number;
+  readonly #wasiCommand?: CommandTool;
 
   constructor(options: BashToolOptions = {}) {
     this.#maxOutputBytes =
       typeof options.maxOutputBytes === "number" && options.maxOutputBytes > 0 ? Math.trunc(options.maxOutputBytes) : 1024 * 1024;
+    this.#wasiCommand = options.wasiCommand;
   }
 
   async run(toolInput: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
@@ -51,6 +55,20 @@ export class BashTool implements Tool {
     const res = await execSequence(ast, { env, cwd }, {
       workspace,
       runCommand: async (argv, io, deps) => {
+        if (this.#wasiCommand) {
+          const out = (await this.#wasiCommand.run(
+            {
+              argv,
+              cwd: io.cwd,
+              env: io.env,
+              stdin: io.stdin,
+              limits: { maxStdoutBytes: this.#maxOutputBytes, maxStderrBytes: this.#maxOutputBytes },
+            },
+            { sessionId: ctx.sessionId, toolUseId: `${ctx.toolUseId}:cmd`, workspace: deps.workspace } as any,
+          )) as any;
+          return { exitCode: Number(out.exitCode ?? out.exit_code ?? 0), stdout: String(out.stdout ?? ""), stderr: String(out.stderr ?? "") };
+        }
+
         const out = await runBuiltin(argv, io, deps);
         if (!out) throw new Error(`unknown command: ${argv[0] ?? ""}`);
         return out;
@@ -77,4 +95,3 @@ export class BashTool implements Tool {
     };
   }
 }
-

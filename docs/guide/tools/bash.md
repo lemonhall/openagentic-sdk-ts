@@ -36,3 +36,6 @@
 - Not all bash quoting/escaping rules are implemented.
 - Command set is intentionally small in v2; v3+ can swap built-ins for WASI tool bundles.
 
+## WASI backend (v3+)
+
+The `Bash` tool can be configured to execute commands via WASI bundles (`Shell(script)` → `Command(argv)`), while keeping the same shadow-workspace isolation model. This is the path to “same semantics” across browser and server (e.g. via `wasmtime` on the server).
