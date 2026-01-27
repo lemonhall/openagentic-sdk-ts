@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@openagentic/sdk-core": "workspace:*"
+    "@openagentic/native-runner": "workspace:*",
+    "@openagentic/sdk-core": "workspace:*",
+    "@openagentic/wasi-runner-wasmtime": "workspace:*"
   },
   "exports": {
     ".": {
@@ -26,4 +28,3 @@
     "vitest": "^2.1.9"
   }
 }
-

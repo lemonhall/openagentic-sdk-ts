@@ -133,9 +133,15 @@ importers:
 
   packages/node:
     dependencies:
+      '@openagentic/native-runner':
+        specifier: workspace:*
+        version: link:../native-runner
       '@openagentic/sdk-core':
         specifier: workspace:*
         version: link:../core
+      '@openagentic/wasi-runner-wasmtime':
+        specifier: workspace:*
+        version: link:../wasi-runner-wasmtime
     devDependencies:
       '@types/node':
         specifier: ^22.13.4
