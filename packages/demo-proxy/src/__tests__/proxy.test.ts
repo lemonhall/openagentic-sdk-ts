@@ -23,7 +23,7 @@ describe("demo-proxy", () => {
       }) as any;
     }) as any;
 
-    const handler = createProxyHandler({ apiKey: "k", fetchImpl: fakeFetch });
+    const handler = createProxyHandler({ apiKey: "k", fetchImpl: fakeFetch, upstreamBaseUrl: "https://example.com/custom/v1" } as any);
 
     const body = Buffer.from(JSON.stringify({ model: "x", input: [] }), "utf8");
     const req = Readable.from([body]) as any;
@@ -52,7 +52,7 @@ describe("demo-proxy", () => {
     expect(text).toContain("data:");
 
     expect(calls.length).toBe(1);
-    expect(calls[0]!.url).toMatch(/\/v1\/responses$/);
+    expect(calls[0]!.url).toBe("https://example.com/custom/v1/responses");
     expect(calls[0]!.init.headers.authorization).toBe("Bearer k");
   });
 });

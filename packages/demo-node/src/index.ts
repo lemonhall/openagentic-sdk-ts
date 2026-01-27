@@ -9,6 +9,8 @@ export type RunCliDeps = {
   provider?: import("@openagentic/sdk-core").ModelProvider;
   model?: string;
   apiKey?: string;
+  baseUrl?: string;
+  fetchImpl?: typeof fetch;
   systemPrompt?: string;
   sessionStore?: import("@openagentic/sdk-core").SessionStore;
   workspace?: import("@openagentic/workspace").Workspace;
@@ -41,11 +43,19 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
   const stdout = deps.stdout ?? process.stdout;
   const stderr = deps.stderr ?? process.stderr;
 
+  const baseUrlFlag = getFlagValue(argv, "--base-url");
   const projectDir = getFlagValue(argv, "--project");
   const once = getFlagValue(argv, "--once");
   if (once != null) {
     const injectedProvider = deps.provider as ModelProvider | undefined;
-    const provider = injectedProvider ?? new OpenAIResponsesProvider();
+    const baseUrl = deps.baseUrl ?? baseUrlFlag ?? process.env.OPENAI_BASE_URL;
+    const fetchImpl = deps.fetchImpl;
+    const provider =
+      injectedProvider ??
+      new OpenAIResponsesProvider({
+        ...(baseUrl ? { baseUrl } : {}),
+        ...(fetchImpl ? { fetchImpl } : {}),
+      });
     const model = deps.model ?? "gpt-4o-mini";
     const apiKey = deps.apiKey ?? process.env.OPENAI_API_KEY;
     let sessionStore = deps.sessionStore as SessionStore | undefined;
@@ -86,7 +96,14 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
   }
 
   const injectedProvider = deps.provider as ModelProvider | undefined;
-  const provider = injectedProvider ?? new OpenAIResponsesProvider();
+  const baseUrl = deps.baseUrl ?? baseUrlFlag ?? process.env.OPENAI_BASE_URL;
+  const fetchImpl = deps.fetchImpl;
+  const provider =
+    injectedProvider ??
+    new OpenAIResponsesProvider({
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(fetchImpl ? { fetchImpl } : {}),
+    });
   const model = deps.model ?? "gpt-4o-mini";
   const apiKey = deps.apiKey ?? process.env.OPENAI_API_KEY;
   let sessionStore = deps.sessionStore as SessionStore | undefined;

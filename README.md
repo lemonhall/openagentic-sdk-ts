@@ -28,6 +28,12 @@ pnpm install
 OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project .
 ```
 
+For OpenAI-compatible providers, set `OPENAI_BASE_URL` (must include `/v1`), e.g.:
+
+```bash
+OPENAI_API_KEY=... OPENAI_BASE_URL=https://your-provider.example/v1 pnpm -C packages/demo-node start -- --project .
+```
+
 CLI commands:
 
 - `/status` shows the shadow-vs-real diff summary
@@ -43,6 +49,12 @@ To avoid CORS issues and to keep API keys off the page, it calls OpenAI through 
 pnpm install
 OPENAI_API_KEY=... pnpm -C packages/demo-proxy start
 pnpm -C packages/demo-web dev
+```
+
+For OpenAI-compatible providers, set the proxy upstream base URL:
+
+```bash
+OPENAI_API_KEY=... OPENAI_BASE_URL=https://your-provider.example/v1 pnpm -C packages/demo-proxy start
 ```
 
 Open the Vite URL in a Chromium-based browser (File System Access API + OPFS required).

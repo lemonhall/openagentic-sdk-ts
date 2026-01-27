@@ -23,6 +23,14 @@ OPENAI_API_KEY=... pnpm -C packages/demo-proxy start
 
 Default: `http://localhost:8787/v1`
 
+### OpenAI-compatible providers (custom upstream base URL)
+
+If your provider is OpenAI-compatible but hosted elsewhere, set `OPENAI_BASE_URL` (must include `/v1`) for the proxy:
+
+```bash
+OPENAI_API_KEY=... OPENAI_BASE_URL=https://your-provider.example/v1 pnpm -C packages/demo-proxy start
+```
+
 ## Start the web app
 
 ```bash
@@ -37,4 +45,3 @@ Open the URL printed by Vite.
 - Click “Import → OPFS” to copy it into the OPFS shadow workspace.
 - Run prompts in the chat; tools operate on OPFS, not your real folder.
 - Click “Commit → Real” to write OPFS changes back to the selected folder.
-

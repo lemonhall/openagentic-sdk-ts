@@ -5,6 +5,7 @@
 - Node.js 18+
 - pnpm 10+
 - An OpenAI API key in `OPENAI_API_KEY`
+- Optional: `OPENAI_BASE_URL` for OpenAI-compatible providers (example: `https://your-provider.example/v1`)
 
 ## Install
 
@@ -20,6 +21,14 @@ Run against a local project directory (the agent operates on a shadow workspace 
 OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project .
 ```
 
+### OpenAI-compatible providers (custom base URL)
+
+If your provider uses a non-OpenAI domain but is API-compatible, set `OPENAI_BASE_URL` (must include `/v1`):
+
+```bash
+OPENAI_API_KEY=... OPENAI_BASE_URL=https://your-provider.example/v1 pnpm -C packages/demo-node start -- --project .
+```
+
 ### Commands
 
 - Type any message to continue the conversation (multi-turn in a single session).
@@ -32,4 +41,3 @@ OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project .
 ```bash
 OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . --once "List the files in the workspace"
 ```
-

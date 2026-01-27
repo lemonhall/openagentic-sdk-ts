@@ -5,7 +5,11 @@ import { Readable } from "node:stream";
 export type ProxyServerOptions = {
   apiKey: string;
   fetchImpl?: typeof fetch;
-  upstreamOrigin?: string;
+  /**
+   * OpenAI-compatible base URL including the `/v1` prefix.
+   * Example: `https://api.openai.com/v1`
+   */
+  upstreamBaseUrl?: string;
 };
 
 export type ProxyServer = {
@@ -31,8 +35,8 @@ export function createProxyHandler(options: ProxyServerOptions): (req: IncomingM
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   if (typeof fetchImpl !== "function") throw new Error("demo-proxy: fetch is required");
 
-  const upstreamOrigin = (options.upstreamOrigin ?? "https://api.openai.com").replace(/\/+$/, "");
-  const upstreamUrl = `${upstreamOrigin}/v1/responses`;
+  const upstreamBaseUrl = (options.upstreamBaseUrl ?? "https://api.openai.com/v1").replace(/\/+$/, "");
+  const upstreamUrl = `${upstreamBaseUrl}/responses`;
 
   return async (req, res) => {
     try {
