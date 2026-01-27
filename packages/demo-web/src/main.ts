@@ -47,7 +47,7 @@ async function main(): Promise<void> {
         </label>
         <label class="oaField">
           <div class="oaLabel">Model</div>
-          <input id="model" class="oaInput" value="gpt-4o-mini" />
+          <input id="model" class="oaInput" value="gpt-5.2" />
         </label>
         <div class="oaButtons">
           <button id="chooseDir" class="oaBtn">Choose Directory</button>
@@ -146,7 +146,7 @@ async function main(): Promise<void> {
       const agent = createBrowserAgent({
         sessionStore,
         workspace,
-        model: modelEl.value.trim() || "gpt-4o-mini",
+        model: modelEl.value.trim() || "gpt-5.2",
         providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
       });
       return { runtime: agent.runtime, refreshFiles };
