@@ -91,4 +91,25 @@ describe("demo-node runtime wiring", () => {
 
     expect(out.stdout).toBe("hi\n");
   });
+
+  it("defaults to WASI-backed Bash", async () => {
+    const createDemoRuntime = (runtimeMod as any).createDemoRuntime as
+      | ((opts: any) => Promise<{ tools: any }>)
+      | undefined;
+    expect(typeof createDemoRuntime).toBe("function");
+    if (typeof createDemoRuntime !== "function") return;
+
+    const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
+    const workspace = new MemoryWorkspace();
+    const provider = new FakeProvider() as any;
+
+    const { tools } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model" });
+    const bash = tools.get("Bash");
+    const out = (await bash.run(
+      { command: "echo" },
+      { sessionId: "s", toolUseId: "t", workspace } as any,
+    )) as any;
+
+    expect(out.stdout).toBe("hi\n");
+  });
 });

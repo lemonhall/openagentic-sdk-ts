@@ -103,6 +103,8 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
   toolRunner: ToolRunner;
   permissionGate: AskOncePermissionGate;
 }> {
+  const enableWasiBash = options.enableWasiBash !== false;
+
   const tools = new ToolRegistry();
   tools.register(new ListDirTool());
   // Back-compat for older prompts/tests.
@@ -113,7 +115,7 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
   tools.register(new EditTool());
   tools.register(new GlobTool());
   tools.register(new GrepTool());
-  if (options.enableWasiBash) {
+  if (enableWasiBash) {
     const root = sampleBundleRoot();
     const cache = fileCache(root);
     const bundle = await installSampleCoreUtils(root, cache);
