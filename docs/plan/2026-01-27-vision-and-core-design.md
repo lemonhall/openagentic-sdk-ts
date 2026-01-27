@@ -210,3 +210,4 @@ Make the default “Bash-like” experience **WASI-first** (bundles + runners) w
 - Deterministic replay with recorded tool outputs (for offline simulation).
 - Fine-grained network allowlists and policy DSLs.
 - Pluggable outer sandboxes on server (e.g., Bubblewrap, nsjail, gVisor, Firecracker) to harden the runner process while keeping WASI tool semantics.
+- Alternative server execution engines (Linux-only), e.g. running host-native tools under Bubblewrap. This trades away browser parity and tool reproducibility for operational convenience.

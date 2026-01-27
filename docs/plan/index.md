@@ -30,6 +30,12 @@ v5 adds a stable server-side “outer sandbox adapter” contract so deployments
 
 - v5 index: `v5-index.md`
 
+## v6 plans (Bubblewrap-native engine)
+
+v6 adds a second **server-side execution engine** that runs host-native commands under Bubblewrap (Linux-only) and intentionally does not ship any tool bundles. This is useful for deployments that want “use whatever is installed on the host” and accept non-portability vs browser.
+
+- v6 index: `v6-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:
