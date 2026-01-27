@@ -9,3 +9,5 @@ export { WriteTool } from "./claude/write.js";
 export { EditTool } from "./claude/edit.js";
 export { GlobTool } from "./claude/glob.js";
 export { GrepTool } from "./claude/grep.js";
+export { WebFetchTool } from "./web/web-fetch.js";
+export { WebSearchTool } from "./web/web-search.js";
