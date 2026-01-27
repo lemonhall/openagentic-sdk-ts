@@ -8,9 +8,9 @@
 ## Concepts
 
 - Security model: `security.md`
-- Tools model (argv-first): `tools.md`
+- Tools overview: `tools.md`
+- Tools reference: `docs/guide/tools/README.md`
 
 ## Hands-on
 
 - Manual testing checklist: `manual-testing.md`
-

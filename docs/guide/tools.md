@@ -4,6 +4,8 @@
 
 Tools are argv-first and operate inside a constrained environment. In v2 demos we keep tools sandboxed (shadow workspace + constrained networking), while still providing a practical baseline toolset for real agent work.
 
+For a full per-tool reference (inputs/outputs/examples), see: `docs/guide/tools/README.md`
+
 ## Currently enabled in demos
 
 - `ListDir` — list a directory in the shadow workspace
