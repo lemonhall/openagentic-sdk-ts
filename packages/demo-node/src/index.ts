@@ -21,10 +21,11 @@ import type { ModelProvider, SessionStore } from "@openagentic/sdk-core";
 import { JsonlSessionStore } from "@openagentic/sdk-core";
 import { OpenAIResponsesProvider } from "@openagentic/providers-openai";
 import { createNodeJsonlBackend } from "@openagentic/sdk-node";
-import { MemoryWorkspace } from "@openagentic/workspace";
 import type { Workspace } from "@openagentic/workspace";
 import type { Snapshot } from "@openagentic/workspace";
 import { computeChangeSet, snapshotWorkspace } from "@openagentic/workspace";
+import { LocalDirWorkspace } from "@openagentic/workspace/node";
+import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import { createDemoRuntime } from "./runtime.js";
@@ -61,6 +62,8 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
     const apiKey = deps.apiKey ?? process.env.OPENAI_API_KEY;
     let sessionStore = deps.sessionStore as SessionStore | undefined;
     let workspace = deps.workspace as Workspace | undefined;
+    let wasiPreopenDir: string | undefined;
+    let sessionId: string | undefined;
 
     if (!injectedProvider && !apiKey) {
       throw new Error("runCli: OPENAI_API_KEY is required (or pass deps.provider + deps.apiKey)");
@@ -73,9 +76,14 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
 
     if (!workspace) {
       if (!projectDir) throw new Error("runCli: workspace is required (pass deps.workspace) or provide --project");
-      const shadow = new MemoryWorkspace();
+      sessionId = await sessionStore.createSession();
+      const shadowDir = join(projectDir, ".openagentic", "shadow", sessionId);
+      await rm(shadowDir, { recursive: true, force: true });
+      await mkdir(shadowDir, { recursive: true });
+      const shadow = new LocalDirWorkspace(shadowDir);
       await importLocalDirToShadow({ realDir: projectDir, shadow });
       workspace = shadow;
+      wasiPreopenDir = shadowDir;
     }
 
     const { runtime } = createDemoRuntime({
@@ -86,12 +94,14 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
       apiKey,
       systemPrompt: deps.systemPrompt,
       enableWasiBash,
+      wasiPreopenDir,
     });
 
     const renderer = createCliRenderer(stdout);
-    let sessionId: string | undefined;
-    for await (const ev of runtime.runTurn({ userText: once })) {
+    const sid = sessionId ?? (await sessionStore.createSession());
+    for await (const ev of runtime.runTurn({ sessionId: sid, userText: once })) {
       renderer.onEvent(ev);
+      // Keep return stable.
       if (ev.type === "system.init") sessionId = (ev as any).sessionId;
     }
     return { exitCode: 0, sessionId };
@@ -110,7 +120,9 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
   const apiKey = deps.apiKey ?? process.env.OPENAI_API_KEY;
   let sessionStore = deps.sessionStore as SessionStore | undefined;
   let workspace = deps.workspace as Workspace | undefined;
-  let shadowForCommit: MemoryWorkspace | null = null;
+  let sessionId: string | undefined;
+  let wasiPreopenDir: string | undefined;
+  let shadowForCommit: Workspace | null = null;
   let baseSnapshot: Snapshot | null = null;
 
   if (!injectedProvider && !apiKey) {
@@ -124,12 +136,16 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
 
   if (!workspace) {
     if (!projectDir) throw new Error("runCli: workspace is required (pass deps.workspace) or provide --project");
-    const shadow = new MemoryWorkspace();
+    sessionId = await sessionStore.createSession();
+    const shadowDir = join(projectDir, ".openagentic", "shadow", sessionId);
+    await rm(shadowDir, { recursive: true, force: true });
+    await mkdir(shadowDir, { recursive: true });
+    const shadow = new LocalDirWorkspace(shadowDir);
     const imported = await importLocalDirToShadow({ realDir: projectDir, shadow });
     workspace = shadow;
-    // Only available when we created the shadow from a real project directory.
     shadowForCommit = shadow;
     baseSnapshot = imported.baseSnapshot;
+    wasiPreopenDir = shadowDir;
   }
 
   const { runtime } = createDemoRuntime({
@@ -140,10 +156,10 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
     apiKey,
     systemPrompt: deps.systemPrompt,
     enableWasiBash,
+    wasiPreopenDir,
   });
   const renderer = createCliRenderer(stdout);
 
-  let sessionId: string | undefined;
   const rl = deps.lines == null ? createInterface({ input: process.stdin, output: process.stdout, terminal: true }) : null;
   const lines: AsyncIterable<string> = (deps.lines ?? rl) as any;
 

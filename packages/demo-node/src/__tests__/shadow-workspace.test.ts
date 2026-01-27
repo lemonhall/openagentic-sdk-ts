@@ -13,6 +13,11 @@ describe("demo-node shadow workspace", () => {
     const dir = await mkdtemp(join(tmpdir(), "openagentic-demo-node-"));
     const realPath = join(dir, "a.txt");
     await writeFile(realPath, "one\n");
+    await writeFile(join(dir, ".openagentic", "should-not-import.txt"), "nope\n").catch(async () => {
+      // Ensure directory exists across platforms.
+      await (await import("node:fs/promises")).mkdir(join(dir, ".openagentic"), { recursive: true });
+      await writeFile(join(dir, ".openagentic", "should-not-import.txt"), "nope\n");
+    });
 
     const shadow = new MemoryWorkspace();
 
@@ -29,8 +34,12 @@ describe("demo-node shadow workspace", () => {
 
     const { baseSnapshot } = await importLocalDirToShadow({ realDir: dir, shadow });
 
+    // Internal metadata should not be imported.
+    await expect(shadow.readFile(".openagentic/should-not-import.txt")).rejects.toThrow();
+
     // Modify in shadow.
     await shadow.writeFile("a.txt", new TextEncoder().encode("two\n"));
+    await shadow.writeFile(".openagentic/should-not-commit.txt", new TextEncoder().encode("nope\n"));
 
     // Real FS unchanged until commit.
     expect((await readFile(realPath, "utf8")).toString()).toBe("one\n");
@@ -38,6 +47,6 @@ describe("demo-node shadow workspace", () => {
     await commitShadowToLocalDir({ realDir: dir, shadow, baseSnapshot });
 
     expect((await readFile(realPath, "utf8")).toString()).toBe("two\n");
+    await expect(readFile(join(dir, ".openagentic", "should-not-commit.txt"), "utf8")).rejects.toThrow();
   });
 });
-

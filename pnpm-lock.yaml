@@ -53,6 +53,9 @@ importers:
       '@openagentic/tools':
         specifier: workspace:*
         version: link:../tools
+      '@openagentic/wasi-runner-wasmtime':
+        specifier: workspace:*
+        version: link:../wasi-runner-wasmtime
       '@openagentic/wasi-runner-web':
         specifier: workspace:*
         version: link:../wasi-runner-web

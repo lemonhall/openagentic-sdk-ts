@@ -21,9 +21,11 @@ import {
 } from "@openagentic/tools";
 import type { BundleCache, InstalledBundle } from "@openagentic/bundles";
 import { InProcessWasiRunner } from "@openagentic/wasi-runner-web";
+import { WasmtimeWasiRunner } from "@openagentic/wasi-runner-wasmtime";
 import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
 
 export type CreateDemoRuntimeOptions = {
   sessionStore: SessionStore;
@@ -34,6 +36,7 @@ export type CreateDemoRuntimeOptions = {
   systemPrompt?: string;
   maxSteps?: number;
   enableWasiBash?: boolean;
+  wasiPreopenDir?: string;
 };
 
 function repoRootFromHere(): string {
@@ -59,6 +62,15 @@ function fileCache(rootDir: string): BundleCache {
       throw new Error("demo-node: fileCache.write not supported");
     },
   };
+}
+
+function hasWasmtime(): boolean {
+  try {
+    execSync("command -v wasmtime", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function sampleCoreUtilsBundle(): InstalledBundle {
@@ -93,7 +105,8 @@ export function createDemoRuntime(options: CreateDemoRuntimeOptions): {
   tools.register(new GrepTool());
   if (options.enableWasiBash) {
     const root = sampleBundleRoot();
-    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [sampleCoreUtilsBundle()], cache: fileCache(root) });
+    const runner = hasWasmtime() ? new WasmtimeWasiRunner() : new InProcessWasiRunner();
+    const command = new CommandTool({ runner, bundles: [sampleCoreUtilsBundle()], cache: fileCache(root) });
     tools.register(new BashTool({ wasiCommand: command }));
   } else {
     tools.register(new BashTool());
@@ -109,7 +122,10 @@ export function createDemoRuntime(options: CreateDemoRuntimeOptions): {
     tools,
     permissionGate,
     sessionStore: options.sessionStore,
-    contextFactory: async () => ({ workspace: options.workspace }),
+    contextFactory: async () => ({
+      workspace: options.workspace,
+      ...(options.wasiPreopenDir ? { wasi: { preopenDir: options.wasiPreopenDir } } : {}),
+    }),
   });
 
   const runtime = new AgentRuntime({

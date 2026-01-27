@@ -9,6 +9,7 @@
     "@openagentic/sdk-core": "workspace:*",
     "@openagentic/sdk-node": "workspace:*",
     "@openagentic/tools": "workspace:*",
+    "@openagentic/wasi-runner-wasmtime": "workspace:*",
     "@openagentic/wasi-runner-web": "workspace:*",
     "@openagentic/workspace": "workspace:*"
   },
