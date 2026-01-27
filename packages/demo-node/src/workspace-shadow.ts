@@ -1,5 +1,6 @@
 import type { ChangeSet, Snapshot, Workspace } from "@openagentic/workspace";
-import { computeChangeSet, LocalDirWorkspace, snapshotWorkspace } from "@openagentic/workspace";
+import { computeChangeSet, snapshotWorkspace } from "@openagentic/workspace";
+import { LocalDirWorkspace } from "@openagentic/workspace/node";
 
 async function copyAll(src: Workspace, dst: Workspace, dir: string = ""): Promise<void> {
   const entries = await src.listDir(dir);

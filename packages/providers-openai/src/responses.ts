@@ -6,6 +6,7 @@ export type OpenAIResponsesProviderOptions = {
   baseUrl?: string;
   apiKeyHeader?: string;
   fetchImpl?: typeof fetch;
+  requireApiKey?: boolean;
 };
 
 function parseToolArguments(raw: unknown): Record<string, unknown> {
@@ -46,22 +47,26 @@ export class OpenAIResponsesProvider implements ModelProvider {
   readonly #baseUrl: string;
   readonly #apiKeyHeader: string;
   readonly #fetch: typeof fetch;
+  readonly #requireApiKey: boolean;
 
   constructor(options: OpenAIResponsesProviderOptions = {}) {
     this.#baseUrl = (options.baseUrl ?? "https://api.openai.com/v1").replace(/\/+$/, "");
     this.#apiKeyHeader = options.apiKeyHeader ?? "authorization";
     this.#fetch = options.fetchImpl ?? globalThis.fetch;
+    this.#requireApiKey = options.requireApiKey ?? true;
     if (typeof this.#fetch !== "function") throw new Error("OpenAIResponsesProvider: fetch is required");
   }
 
   async complete(req: ModelCompleteRequest): Promise<ModelOutput> {
     const apiKey = req.apiKey;
-    if (!apiKey) throw new Error("OpenAIResponsesProvider: apiKey is required");
+    if (this.#requireApiKey && !apiKey) throw new Error("OpenAIResponsesProvider: apiKey is required");
 
     const url = `${this.#baseUrl}/responses`;
     const headers: Record<string, string> = { "content-type": "application/json" };
-    if (this.#apiKeyHeader.toLowerCase() === "authorization") headers.authorization = `Bearer ${apiKey}`;
-    else headers[this.#apiKeyHeader] = apiKey;
+    if (apiKey) {
+      if (this.#apiKeyHeader.toLowerCase() === "authorization") headers.authorization = `Bearer ${apiKey}`;
+      else headers[this.#apiKeyHeader] = apiKey;
+    }
 
     const payload: Record<string, unknown> = {
       model: req.model,
@@ -111,12 +116,14 @@ export class OpenAIResponsesProvider implements ModelProvider {
 
   async *stream(req: ModelCompleteRequest): AsyncIterable<ModelStreamEvent> {
     const apiKey = req.apiKey;
-    if (!apiKey) throw new Error("OpenAIResponsesProvider: apiKey is required");
+    if (this.#requireApiKey && !apiKey) throw new Error("OpenAIResponsesProvider: apiKey is required");
 
     const url = `${this.#baseUrl}/responses`;
     const headers: Record<string, string> = { "content-type": "application/json" };
-    if (this.#apiKeyHeader.toLowerCase() === "authorization") headers.authorization = `Bearer ${apiKey}`;
-    else headers[this.#apiKeyHeader] = apiKey;
+    if (apiKey) {
+      if (this.#apiKeyHeader.toLowerCase() === "authorization") headers.authorization = `Bearer ${apiKey}`;
+      else headers[this.#apiKeyHeader] = apiKey;
+    }
 
     const payload: Record<string, unknown> = {
       model: req.model,

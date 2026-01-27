@@ -8,6 +8,3 @@ export type { FileSystemDirectoryHandleLike, FileSystemFileHandleLike } from "./
 export { OpfsWorkspace, getOpfsRootDirectory } from "./browser/opfs.js";
 export { importFromDirectoryHandle } from "./browser/import.js";
 export { commitToDirectoryHandle } from "./browser/commit.js";
-
-export { LocalDirWorkspace } from "./node/local-dir.js";
-

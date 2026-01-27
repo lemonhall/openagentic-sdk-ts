@@ -61,6 +61,43 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.19.7)
 
+  packages/demo-proxy:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.4
+        version: 22.19.7
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.7)
+
+  packages/demo-web:
+    dependencies:
+      '@openagentic/providers-openai':
+        specifier: workspace:*
+        version: link:../providers-openai
+      '@openagentic/sdk-core':
+        specifier: workspace:*
+        version: link:../core
+      '@openagentic/tools':
+        specifier: workspace:*
+        version: link:../tools
+      '@openagentic/workspace':
+        specifier: workspace:*
+        version: link:../workspace
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vite:
+        specifier: ^5.4.11
+        version: 5.4.21(@types/node@22.19.7)
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.7)
+
   packages/node:
     dependencies:
       '@openagentic/sdk-core':

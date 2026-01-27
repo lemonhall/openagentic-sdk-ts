@@ -1,0 +1,179 @@
+.oa {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: #111827;
+  background: #0b1020;
+  min-height: 100vh;
+}
+
+.oaHeader {
+  padding: 16px 16px 8px 16px;
+}
+
+.oaTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.oaSubtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.oaControls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.oaField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.oaLabel {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.oaInput {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(17, 24, 39, 0.6);
+  color: #e5e7eb;
+}
+
+.oaButtons {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+
+.oaBtn {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.oaBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.oaSend {
+  min-width: 96px;
+}
+
+.oaStatus {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: #93c5fd;
+  padding-top: 6px;
+}
+
+.oaMain {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 12px;
+  padding: 12px 16px 16px 16px;
+}
+
+.oaChat {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  min-height: 70vh;
+}
+
+.oaTranscript {
+  padding: 12px;
+  overflow: auto;
+  flex: 1;
+}
+
+.oaMsg {
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  line-height: 1.35;
+}
+
+.oaUser {
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  color: #e5e7eb;
+  align-self: flex-end;
+}
+
+.oaAssistant {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.16);
+  color: #e5e7eb;
+}
+
+.oaComposer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.oaPrompt {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(17, 24, 39, 0.6);
+  color: #e5e7eb;
+  resize: vertical;
+}
+
+.oaSidebar {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+}
+
+.oaSidebarTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 8px;
+}
+
+.oaFiles {
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.oaFileRow {
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.oaMuted {
+  color: #9ca3af;
+}
+
+@media (max-width: 900px) {
+  .oaControls {
+    grid-template-columns: 1fr;
+  }
+  .oaMain {
+    grid-template-columns: 1fr;
+  }
+}
+
