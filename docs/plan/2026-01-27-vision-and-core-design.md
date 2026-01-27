@@ -48,7 +48,7 @@ The repo now has a runnable end-to-end agent slice (Node + browser) and a “rea
 - Node runnable demo: shadow workspace + real OpenAI call; `/status` + `/commit` boundary.
 - “Claude-style” baseline tools in pure TS (`Read/Write/Edit/Glob/Grep/Bash/WebFetch/WebSearch/TodoWrite/SlashCommand/Skill`), operating on the shadow workspace.
 
-**Present but not the default path in demos:**
+**Present and used by default in demos:**
 
 - WASI runners (`@openagentic/wasi-runner-web`, `@openagentic/wasi-runner-wasmtime`).
 - WASI bundle plumbing (`@openagentic/bundles`) and WASI tools (`Command(argv)`, `Shell(script)`).
@@ -57,13 +57,8 @@ The repo now has a runnable end-to-end agent slice (Node + browser) and a “rea
 
 The high-level architecture remains valid, but several pieces are still “prototype-grade” or disconnected from the default runnable path:
 
-- **Browser WASI runner is not OPFS-mounted**: current web runner executes in-process with an in-memory FS snapshot; it does not run in a WebWorker with OPFS-backed, synchronous file handles.
-- **Server WASI runner is snapshot-per-exec**: current wasmtime runner shells out to `wasmtime` and uses tempdir snapshots, not a preopened shadow directory workspace.
-- **No WASI network capability wiring yet**: the `netFetch` capability exists in types/utilities, but runners/tools do not currently expose it to WASI modules.
-- **Tool bundles are not production-complete**:
-  - signature verification for the official registry is intentionally deferred (plumbing exists, keys/canonicalization not defined yet),
-  - the sample bundle is minimal, so a WASI-first `Bash` experience would be unusable today.
-- **Default `Bash` is TS-native builtins** (by design for v2 runnable-ness), not `Shell(script)` → `Command(argv)` over WASI bundles.
+- **WASI network capability is still incomplete**: the `netFetch` capability exists in types/utilities, but runners/tools do not yet expose it end-to-end to WASI modules with consistent policy + auditing.
+- **Python is still tracked but not fully delivered**: the `Python` tool needs a real WASI runtime bundle (phase A: MicroPython; phase B: CPython) and a clear packaging policy.
 
 ## Core architecture (recommended)
 

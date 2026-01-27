@@ -8,7 +8,7 @@ import {
   snapshotWorkspace,
 } from "@openagentic/workspace";
 
-import { createBrowserAgent } from "./agent.js";
+import { createBrowserAgent, resetBrowserWasiRunner } from "./agent.js";
 import { createController } from "./controller.js";
 import { clearDirectoryHandle } from "./fs-utils.js";
 import { shouldSubmitOnKeydown } from "./composer.js";
@@ -99,6 +99,8 @@ async function main(): Promise<void> {
 
   const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
 
+  const OPFS_DIR = "openagentic-demo-web";
+
   let workspace: OpfsWorkspace | null = null;
   let baseSnapshot: Snapshot | null = null;
   let workspaceInit: Promise<void> | null = null;
@@ -148,7 +150,7 @@ async function main(): Promise<void> {
     if (!workspaceInit) {
       workspaceInit = (async () => {
         const opfsRoot = await getOpfsRootDirectory();
-        opfsDemoDir = await (opfsRoot as any).getDirectoryHandle("openagentic-demo-web", { create: true });
+        opfsDemoDir = await (opfsRoot as any).getDirectoryHandle(OPFS_DIR, { create: true });
         workspace = new OpfsWorkspace(opfsDemoDir as any);
         // Important: OPFS persists across reloads; avoid full snapshot/hashing on startup.
         baseSnapshot = null;
@@ -167,6 +169,7 @@ async function main(): Promise<void> {
         model: modelEl.value.trim() || "gpt-5.2",
         providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
         enableWasiBash: wasiBashEl.checked,
+        wasiPreopenDir: OPFS_DIR,
       });
       return { runtime: agent.runtime, refreshFiles };
     },
@@ -235,6 +238,7 @@ async function main(): Promise<void> {
       });
       setStatus("snapshotting...");
       baseSnapshot = await snapshotWorkspace(workspace);
+      resetBrowserWasiRunner();
       await refreshFiles();
       setStatus("imported to OPFS");
     } catch (e) {
@@ -272,6 +276,7 @@ async function main(): Promise<void> {
       if (!opfsDemoDir || !workspace) throw new Error("OPFS workspace init failed");
       await clearDirectoryHandle(opfsDemoDir as any);
       baseSnapshot = null;
+      resetBrowserWasiRunner();
       await refreshFiles();
       setStatus("OPFS cleared");
     } catch (e) {

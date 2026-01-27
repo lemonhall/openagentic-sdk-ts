@@ -35,11 +35,23 @@ export class WorkerWasiRunner implements WasiRunner {
 
   async execModule(input: WasiExecInput): Promise<WasiExecResult> {
     const id = randomId();
-    const req: WorkerExecRequest = { type: "exec", id, input };
-
     const transfer: Transferable[] = [];
-    if (input.module.kind === "bytes") transfer.push(input.module.bytes.buffer);
-    if (input.stdin) transfer.push(input.stdin.buffer);
+
+    // IMPORTANT: never transfer the caller's ArrayBuffers (it detaches them).
+    // Copy first, then transfer the copies.
+    let inputToSend: WasiExecInput = input;
+    if (input.module.kind === "bytes") {
+      const bytes = new Uint8Array(input.module.bytes);
+      inputToSend = { ...inputToSend, module: { kind: "bytes", bytes } };
+      transfer.push(bytes.buffer);
+    }
+    if (input.stdin) {
+      const stdin = new Uint8Array(input.stdin);
+      inputToSend = { ...inputToSend, stdin };
+      transfer.push(stdin.buffer);
+    }
+
+    const req: WorkerExecRequest = { type: "exec", id, input: inputToSend };
 
     const p = new Promise<WasiExecResult>((resolve, reject) => this.#pending.set(id, { resolve, reject }));
     this.#worker.postMessage(req, transfer);
@@ -50,4 +62,3 @@ export class WorkerWasiRunner implements WasiRunner {
     this.#worker.terminate?.();
   }
 }
-

@@ -24,6 +24,9 @@ This supersedes v3’s `docs/plan/v3-feature-03-browser-worker-opfs-wasi-runner.
 - Modify: `packages/wasi-runner-web/src/worker/worker.ts`
 - Test: `packages/wasi-runner-web/src/__tests__/opfs-sync-fs.test.ts`
 
+**Implementation note (v4 actual):**
+- WASI preview1 filesystem hostcalls are synchronous, while OPFS directory/file APIs are promise-based. Instead of trying to do “true sync OPFS syscalls”, the worker keeps an **in-memory FS snapshot** that implements sync preview1 semantics, and **persists deltas** to the OPFS shadow workspace after each command. From the user/tooling perspective, the workspace is OPFS-mounted and there is no per-command main-thread snapshot round-trip.
+
 ### Task 3: Wire demo-web to use Worker runner
 
 **Files:**
@@ -31,4 +34,3 @@ This supersedes v3’s `docs/plan/v3-feature-03-browser-worker-opfs-wasi-runner.
 - Modify: `packages/demo-web/src/main.ts`
 
 **Commit:** `feat(wasi-runner-web): worker + OPFS sync FS`
-

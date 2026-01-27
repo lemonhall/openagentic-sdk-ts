@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { WorkerWasiRunner } from "../worker/runner.js";
 
@@ -24,6 +24,7 @@ describe("WorkerWasiRunner", () => {
     try {
       origGlobal.onmessage = null;
       origGlobal.postMessage = (m: any) => workerScope.postMessage(m);
+      vi.resetModules();
       await import("../worker/worker.js");
 
       const fakeWorker: any = {
@@ -63,5 +64,51 @@ describe("WorkerWasiRunner", () => {
       origGlobal.postMessage = prevPostMessage;
     }
   });
-});
 
+  it("does not detach module bytes in the caller", async () => {
+    const workerScope: any = { postMessage: (_msg: any) => {} };
+    const messages: any[] = [];
+    workerScope.postMessage = (msg: any) => messages.push(msg);
+
+    const origGlobal: any = globalThis as any;
+    const prevOnMessage = origGlobal.onmessage;
+    const prevPostMessage = origGlobal.postMessage;
+    try {
+      origGlobal.onmessage = null;
+      origGlobal.postMessage = (m: any) => workerScope.postMessage(m);
+      vi.resetModules();
+      await import("../worker/worker.js");
+
+      const fakeWorker: any = {
+        onmessage: null,
+        postMessage: async (msg: any, transfer?: Transferable[]) => {
+          // Simulate actual Worker transfer semantics (detaches transferred buffers).
+          const cloned = typeof structuredClone === "function" ? structuredClone(msg, { transfer }) : msg;
+          await origGlobal.onmessage({ data: cloned } as any);
+          for (const m of messages.splice(0)) {
+            fakeWorker.onmessage?.({ data: m } as any);
+          }
+        },
+      };
+
+      const wasm = await compileWat(`
+        (module
+          (import "wasi_snapshot_preview1" "proc_exit" (func $proc_exit (param i32)))
+          (memory 1)
+          (export "memory" (memory 0))
+          (func (export "_start")
+            (call $proc_exit (i32.const 0))
+          )
+        )
+      `);
+
+      const runner = new WorkerWasiRunner(fakeWorker);
+      const res = await runner.execModule({ module: { kind: "bytes", bytes: wasm } });
+      expect(res.exitCode).toBe(0);
+      expect(wasm.byteLength).toBeGreaterThan(0);
+    } finally {
+      origGlobal.onmessage = prevOnMessage;
+      origGlobal.postMessage = prevPostMessage;
+    }
+  });
+});

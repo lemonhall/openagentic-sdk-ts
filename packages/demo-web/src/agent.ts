@@ -32,6 +32,7 @@ export type CreateBrowserAgentOptions = {
   systemPrompt?: string;
   enableWasiBash?: boolean;
   wasiBundleBaseUrl?: string;
+  wasiPreopenDir?: string;
 };
 
 function createBrowserBundleCache(): BundleCache {
@@ -63,6 +64,15 @@ function getBrowserWasiRunner(): WasiRunner {
   }
   sharedWasiRunner = new InProcessWasiRunner();
   return sharedWasiRunner;
+}
+
+export function resetBrowserWasiRunner(): void {
+  const r: any = sharedWasiRunner as any;
+  try {
+    r?.terminate?.();
+  } finally {
+    sharedWasiRunner = null;
+  }
 }
 
 export async function createBrowserAgent(options: CreateBrowserAgentOptions): Promise<{
@@ -98,7 +108,15 @@ export async function createBrowserAgent(options: CreateBrowserAgentOptions): Pr
     tools,
     permissionGate,
     sessionStore: options.sessionStore,
-    contextFactory: async () => ({ workspace: options.workspace }),
+    contextFactory: async () => ({
+      workspace: options.workspace,
+      wasi: options.enableWasiBash && sharedWasiRunner instanceof WorkerWasiRunner
+        ? {
+            // In the browser, `preopenDir` is interpreted as the OPFS directory name for the mounted shadow workspace.
+            preopenDir: (options.wasiPreopenDir ?? "openagentic-demo-web").trim() || "openagentic-demo-web",
+          }
+        : undefined,
+    }),
   });
 
   const provider =
