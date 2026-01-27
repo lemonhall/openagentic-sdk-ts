@@ -23,7 +23,7 @@
 
 .oaControls {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr auto auto;
   gap: 12px;
   padding: 12px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -54,6 +54,20 @@
   display: flex;
   gap: 8px;
   align-items: end;
+}
+
+.oaToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #d1d5db;
+  font-size: 12px;
+  padding-top: 18px;
+  user-select: none;
+}
+
+.oaToggle input {
+  accent-color: #93c5fd;
 }
 
 .oaBtn {

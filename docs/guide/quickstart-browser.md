@@ -46,4 +46,8 @@ Open the URL printed by Vite.
 - Run prompts in the chat; tools operate on OPFS, not your real folder.
 - Click “Commit → Real” to write OPFS changes back to the selected folder.
 
+## WASI-backed `Bash` (preview)
+
+In the web UI, enable “WASI Bash (preview)” to run the `Bash` tool via WASI modules (served from the web app at `/bundles/core-utils/0.0.0/*`). This keeps the same shadow-workspace isolation model, but exercises the WASI toolchain path.
+
 Note: `WebSearch` requires a server-side `TAVILY_API_KEY` and is not enabled in the browser demo by default.

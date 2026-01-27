@@ -51,6 +51,10 @@ async function main(): Promise<void> {
           <div class="oaLabel">Model</div>
           <input id="model" class="oaInput" value="gpt-5.2" />
         </label>
+        <label class="oaToggle">
+          <input id="wasiBash" type="checkbox" />
+          <span>WASI Bash (preview)</span>
+        </label>
         <div class="oaButtons">
           <button id="chooseDir" class="oaBtn">Choose Directory</button>
           <button id="importDir" class="oaBtn">Import → OPFS</button>
@@ -79,6 +83,7 @@ async function main(): Promise<void> {
 
   const proxyUrlEl = document.querySelector<HTMLInputElement>("#proxyUrl")!;
   const modelEl = document.querySelector<HTMLInputElement>("#model")!;
+  const wasiBashEl = document.querySelector<HTMLInputElement>("#wasiBash")!;
   const statusEl = document.querySelector<HTMLDivElement>("#status")!;
   const transcriptEl = document.querySelector<HTMLDivElement>("#transcript")!;
   const filesEl = document.querySelector<HTMLDivElement>("#files")!;
@@ -161,6 +166,7 @@ async function main(): Promise<void> {
         workspace,
         model: modelEl.value.trim() || "gpt-5.2",
         providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
+        enableWasiBash: wasiBashEl.checked,
       });
       return { runtime: agent.runtime, refreshFiles };
     },

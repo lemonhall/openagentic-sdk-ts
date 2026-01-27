@@ -1,9 +1,12 @@
 import type { ModelProvider, SessionStore } from "@openagentic/sdk-core";
 import { AgentRuntime, AskOncePermissionGate, ToolRegistry, ToolRunner } from "@openagentic/sdk-core";
 import { OpenAIResponsesProvider } from "@openagentic/providers-openai";
+import { parseBundleManifest } from "@openagentic/bundles";
+import type { BundleCache, InstalledBundle } from "@openagentic/bundles";
 import type { Workspace } from "@openagentic/workspace";
 import {
   BashTool,
+  CommandTool,
   EditTool,
   GlobTool,
   GrepTool,
@@ -17,6 +20,7 @@ import {
   WriteTool,
   WriteFileTool,
 } from "@openagentic/tools";
+import { InProcessWasiRunner } from "@openagentic/wasi-runner-web";
 
 export type CreateBrowserAgentOptions = {
   sessionStore: SessionStore;
@@ -25,7 +29,54 @@ export type CreateBrowserAgentOptions = {
   providerBaseUrl?: string;
   model: string;
   systemPrompt?: string;
+  enableWasiBash?: boolean;
+  wasiBundleBaseUrl?: string;
 };
+
+function joinUrl(baseUrl: string, path: string): string {
+  const b = (baseUrl ?? "").replace(/\/+$/, "");
+  const p = String(path ?? "").replace(/^\/+/, "");
+  if (!b) return `/${p}`;
+  return `${b}/${p}`;
+}
+
+function createBrowserBundleCache(options: { baseUrl?: string; fetchImpl?: typeof fetch } = {}): BundleCache {
+  const baseUrl = options.baseUrl ?? "";
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  if (typeof fetchImpl !== "function") throw new Error("demo-web: fetch is required for WASI bundle cache");
+
+  const mem = new Map<string, Uint8Array>();
+  return {
+    async read(path) {
+      const key = String(path ?? "");
+      const hit = mem.get(key);
+      if (hit) return hit;
+      const res = await fetchImpl(joinUrl(baseUrl, key), { credentials: "omit" });
+      if (!res.ok) return null;
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      mem.set(key, bytes);
+      return bytes;
+    },
+    async write() {
+      throw new Error("demo-web: bundle cache is read-only");
+    },
+  };
+}
+
+function coreUtilsBundle(): InstalledBundle {
+  const manifest = parseBundleManifest({
+    name: "core-utils",
+    version: "0.0.0",
+    assets: [],
+    commands: [
+      { name: "echo", modulePath: "echo.wasm" },
+      { name: "cat", modulePath: "cat.wasm" },
+      { name: "grep", modulePath: "grep.wasm" },
+    ],
+  });
+  return { manifest, rootPath: "bundles/core-utils/0.0.0" };
+}
 
 export function createBrowserAgent(options: CreateBrowserAgentOptions): {
   runtime: AgentRuntime;
@@ -42,7 +93,13 @@ export function createBrowserAgent(options: CreateBrowserAgentOptions): {
   tools.register(new EditTool());
   tools.register(new GlobTool());
   tools.register(new GrepTool());
-  tools.register(new BashTool());
+  if (options.enableWasiBash) {
+    const cache = createBrowserBundleCache({ baseUrl: options.wasiBundleBaseUrl });
+    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [coreUtilsBundle()], cache });
+    tools.register(new BashTool({ wasiCommand: command }));
+  } else {
+    tools.register(new BashTool());
+  }
   tools.register(new WebFetchTool());
   tools.register(new TodoWriteTool());
   tools.register(new SlashCommandTool());

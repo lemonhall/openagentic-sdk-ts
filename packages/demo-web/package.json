@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@openagentic/bundles": "workspace:*",
     "@openagentic/providers-openai": "workspace:*",
     "@openagentic/sdk-core": "workspace:*",
     "@openagentic/tools": "workspace:*",
+    "@openagentic/wasi-runner-web": "workspace:*",
     "@openagentic/workspace": "workspace:*"
   },
   "scripts": {
@@ -21,4 +23,3 @@
     "vitest": "^2.1.9"
   }
 }
-
