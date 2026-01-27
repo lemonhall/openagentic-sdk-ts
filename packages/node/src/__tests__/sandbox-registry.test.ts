@@ -35,4 +35,14 @@ describe("getSandboxBackend", () => {
     const ps = b.createProcessSandbox({ config: cfg });
     expect(ps?.name).toBe("sandbox-exec");
   });
+
+  it("wires the windows jobobject backend (platform-gated)", () => {
+    const cfg = parseSandboxConfig({ backend: "jobobject", options: { timeoutMs: 123 } });
+    const b = getSandboxBackend("jobobject");
+    expect(b.name).toBe("jobobject");
+
+    if (process.platform !== "win32") {
+      expect(() => b.createNativeRunner({ config: cfg, shadowDir: "/tmp" })).toThrow(/win32/);
+    }
+  });
 });

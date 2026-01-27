@@ -6,6 +6,7 @@ import { createBubblewrapProcessSandbox } from "@openagentic/wasi-runner-wasmtim
 import type { SandboxBackendConfig, SandboxBackendName } from "./config.js";
 import { createNsjailProcessSandbox, NsjailNativeRunner } from "./linux-nsjail.js";
 import { createSandboxExecProcessSandbox, SandboxExecNativeRunner } from "./macos-sandbox-exec.js";
+import { createWindowsJobObjectNativeRunner } from "./windows-jobobject.js";
 
 export type SandboxBackend = {
   name: SandboxBackendName;
@@ -84,10 +85,11 @@ const backend: Record<SandboxBackendName, SandboxBackend> = {
   jobobject: {
     name: "jobobject",
     createProcessSandbox() {
-      throw new Error("sandbox: jobobject backend not implemented yet");
+      return undefined;
     },
-    createNativeRunner() {
-      throw new Error("sandbox: jobobject backend not implemented yet");
+    createNativeRunner({ config }) {
+      if (config.backend !== "jobobject") throw new Error("sandbox: backend mismatch (expected jobobject)");
+      return createWindowsJobObjectNativeRunner({ timeoutMs: config.options.timeoutMs });
     },
   },
   "systemd-run": {

@@ -157,6 +157,24 @@ sandbox-exec -p "(version 1)(allow default)" -- bash -lc "echo hello from sandbo
 OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run macos-sandbox.integration
 ```
 
+## Windows：Job Objects（基线后端）
+
+Windows 的沙箱原语与 Linux/macOS 差异很大。v7 里的 Windows “jobobject” 后端是一个 **基线方案**，主要解决：
+
+- 超时后杀掉整个进程树（避免后台残留）
+- 以“时间上限”为主的资源边界（v7 先覆盖 time-based）
+
+限制：
+
+- 不提供文件系统命名空间隔离（不像 Bubblewrap）。
+- 当前实现是超时后用 `taskkill /T /F` 做“务实的基线”；要做到真正的 Job Object 级别分配/限制，需要更深的 Win32 集成。
+
+集成测试（条件跳过）：
+
+```bash
+OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run windows-jobobject.integration
+```
+
 ## Bubblewrap（`bwrap`）外层沙箱（仅 Linux）
 
 Bubblewrap 是基于 Linux namespaces 的生产级沙箱工具（Flatpak 的核心原语之一）。在本项目里，它被当作 **可选的“外层包装器”**：用于包住 `wasmtime` 这个 runner 进程，而不是替代 WASI。

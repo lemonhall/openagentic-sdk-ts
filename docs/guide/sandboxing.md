@@ -154,6 +154,24 @@ Integration test (skip-gated):
 OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run macos-sandbox.integration
 ```
 
+## Windows: Job Objects (baseline backend)
+
+Windows sandbox primitives differ from Linux/macOS. For v7, the Windows “jobobject” backend is a **baseline** that focuses on:
+
+- process tree termination on timeout (no runaway background processes)
+- resource-limit style guardrails (time-based today)
+
+Limitations:
+
+- No filesystem namespace isolation (unlike Bubblewrap).
+- Current implementation uses `taskkill /T /F` on timeout (a pragmatic baseline); a true Job Object assignment would require deeper Win32 integration.
+
+Integration test (skip-gated):
+
+```bash
+OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run windows-jobobject.integration
+```
+
 ## Bubblewrap (`bwrap`) outer sandbox (Linux-only)
 
 Bubblewrap is a production-grade Linux sandbox based on namespaces (and commonly used by Flatpak). In this project it is treated as an *optional wrapper* around the server runner process.
