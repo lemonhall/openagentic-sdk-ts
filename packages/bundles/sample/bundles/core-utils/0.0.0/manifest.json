@@ -16,6 +16,16 @@
       "path": "grep.wasm",
       "sha256": "ab1de1f624f0fe55fa904e4bcfd7ef7d20329641ffecf33fd58506e63d810c5e",
       "size": 921
+    },
+    {
+      "path": "ls.wasm",
+      "sha256": "9a165ced924abbeea7286399dbade7c15567d681e557fd9266c97bcdbcefdd56",
+      "size": 400
+    },
+    {
+      "path": "pwd.wasm",
+      "sha256": "4c2495e037e64f8c002b307313e6708b9bdd2451b90fe4bca86b8be1e81b493a",
+      "size": 215
     }
   ],
   "commands": [
@@ -30,11 +40,19 @@
     {
       "name": "grep",
       "modulePath": "grep.wasm"
+    },
+    {
+      "name": "ls",
+      "modulePath": "ls.wasm"
+    },
+    {
+      "name": "pwd",
+      "modulePath": "pwd.wasm"
     }
   ],
   "signature": {
     "keyId": "dev-2026-01",
     "alg": "ed25519",
-    "sigBase64": "zpyCQYkBT/pfx2XVBvVdXyAW11/x02Uv5MRm8UmpD3KSlzyAtB2/hRoid8L2xZa4rtBqxQoc5Czs/rjAaCEGAQ=="
+    "sigBase64": "OHL/23oEpjipgmAOIAmR0UP2ONqZ2heDcofLLGlc0wHRKTeCLJ7ed5dDbd7cojoyxaHJz8Dezhcn/i3wCN6oBw=="
   }
 }

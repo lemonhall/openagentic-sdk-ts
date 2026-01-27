@@ -122,4 +122,26 @@ describe("CommandTool", () => {
     const bytes = await workspace.readFile("a.txt");
     expect(new TextDecoder().decode(bytes)).toBe("hello");
   });
+
+  it("can run ls from the sample core-utils bundle", async () => {
+    const root = sampleBundleRoot();
+    const manifestRaw = JSON.parse(
+      await readFile(join(root, "bundles", "core-utils", "0.0.0", "manifest.json"), "utf8"),
+    ) as unknown;
+    const manifest = parseBundleManifest(manifestRaw);
+    const bundle: InstalledBundle = { manifest, rootPath: "bundles/core-utils/0.0.0" };
+
+    const tool = new CommandTool({
+      runner: new InProcessWasiRunner(),
+      bundles: [bundle],
+      cache: fileCache(root),
+    });
+
+    const workspace = new MemoryWorkspace();
+    await workspace.writeFile("a.txt", new TextEncoder().encode("a"));
+    await workspace.writeFile("b.txt", new TextEncoder().encode("b"));
+
+    const out = (await tool.run({ argv: ["ls"] }, { sessionId: "s", toolUseId: "t", workspace } as any)) as any;
+    expect(out.stdout).toBe("a.txt\nb.txt\n");
+  });
 });

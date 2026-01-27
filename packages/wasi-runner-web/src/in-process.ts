@@ -45,6 +45,9 @@ const WASI_WHENCE_SET = 0;
 const WASI_WHENCE_CUR = 1;
 const WASI_WHENCE_END = 2;
 
+const WASI_FILETYPE_DIRECTORY = 3;
+const WASI_FILETYPE_REGULAR_FILE = 4;
+
 function normalizeSandboxPath(p: string): string | null {
   if (!p) return null;
   if (p.startsWith("/")) return null;
@@ -302,6 +305,50 @@ export class InProcessWasiRunner implements WasiRunner {
           if (next < 0n) return WASI_ERRNO_INVAL;
           h.offset = Number(next);
           writeU64(newOffsetPtr, BigInt(h.offset));
+          return WASI_ERRNO_SUCCESS;
+        },
+        fd_readdir(fd: number, bufPtr: number, bufLen: number, cookie: bigint, bufusedPtr: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const h = handles.get(fd);
+          if (!h || h.kind !== "dir") return WASI_ERRNO_BADF;
+
+          const files = new Set<string>();
+          const dirs = new Set<string>();
+          for (const p of fsFiles.keys()) {
+            const head = p.split("/")[0] ?? "";
+            if (!head) continue;
+            if (p.includes("/")) dirs.add(head);
+            else files.add(head);
+          }
+          const entries: Array<{ name: string; type: number }> = [];
+          for (const name of Array.from(dirs.values()).sort()) entries.push({ name, type: WASI_FILETYPE_DIRECTORY });
+          for (const name of Array.from(files.values()).sort()) {
+            if (dirs.has(name)) continue;
+            entries.push({ name, type: WASI_FILETYPE_REGULAR_FILE });
+          }
+
+          const start = cookie === 0n ? 0 : Math.max(0, Number(cookie - 1n));
+          let used = 0;
+          let off = bufPtr;
+
+          for (let i = start; i < entries.length; i++) {
+            const ent = entries[i]!;
+            const nameBytes = encoder.encode(ent.name);
+            const need = 24 + nameBytes.byteLength;
+            if (used + need > bufLen) break;
+
+            writeU64(off, BigInt(i + 2)); // d_next cookie
+            writeU64(off + 8, 0n); // d_ino
+            writeU32(off + 16, nameBytes.byteLength); // d_namlen
+            readBytes(off + 20, 1)[0] = ent.type; // d_type
+            readBytes(off + 21, 3).fill(0); // padding
+            readBytes(off + 24, nameBytes.byteLength).set(nameBytes);
+
+            used += need;
+            off += need;
+          }
+
+          writeU32(bufusedPtr, used >>> 0);
           return WASI_ERRNO_SUCCESS;
         },
         path_open(

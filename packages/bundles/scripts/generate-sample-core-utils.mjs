@@ -75,6 +75,8 @@ async function main() {
     { name: "echo", wat: join(watRoot, "echo.wat"), wasm: join(bundleRoot, "echo.wasm") },
     { name: "cat", wat: join(watRoot, "cat.wat"), wasm: join(bundleRoot, "cat.wasm") },
     { name: "grep", wat: join(watRoot, "grep.wat"), wasm: join(bundleRoot, "grep.wasm") },
+    { name: "pwd", wat: join(watRoot, "pwd.wat"), wasm: join(bundleRoot, "pwd.wasm") },
+    { name: "ls", wat: join(watRoot, "ls.wat"), wasm: join(bundleRoot, "ls.wasm") },
   ];
 
   const assets = [];
