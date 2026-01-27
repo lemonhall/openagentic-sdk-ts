@@ -15,6 +15,11 @@ export function buildBubblewrapArgv(options: {
   bwrapPath: string;
   shadowDir: string;
   commandArgv: string[];
+  /**
+   * Workspace-relative working directory inside `/workspace`.
+   * Examples: `""`, `"."`, `"src"`, `"src/subdir"`.
+   */
+  cwd?: string;
   network: BubblewrapNetworkMode;
   roBinds: string[];
 }): { cmd: string; args: string[] } {
@@ -34,7 +39,11 @@ export function buildBubblewrapArgv(options: {
     args.push("--ro-bind", p, p);
   }
 
-  args.push("--bind", options.shadowDir, "/workspace", "--chdir", "/workspace", ...options.commandArgv);
+  const cwdRel = (options.cwd ?? "").replace(/^\/+/, "");
+  const cwd =
+    cwdRel === "" || cwdRel === "." ? "/workspace" : cwdRel.startsWith("workspace/") ? `/${cwdRel}` : `/workspace/${cwdRel}`;
+
+  args.push("--bind", options.shadowDir, "/workspace", "--chdir", cwd, ...options.commandArgv);
   return { cmd: options.bwrapPath, args };
 }
 
@@ -74,6 +83,7 @@ export class BubblewrapNativeRunner implements NativeRunner {
       bwrapPath: this.bwrapPath,
       shadowDir: this.shadowDir,
       commandArgv: input.argv,
+      cwd: input.cwd,
       network: this.network,
       roBinds: this.roBinds,
     });
@@ -89,7 +99,6 @@ export class BubblewrapNativeRunner implements NativeRunner {
     const exitCode = await new Promise<number>((resolve, reject) => {
       const cp = spawn(argv.cmd, argv.args, {
         stdio: ["pipe", "pipe", "pipe"],
-        cwd: input.cwd,
         env: { ...process.env, ...(input.env ?? {}) },
       });
 
@@ -160,4 +169,3 @@ export class BubblewrapNativeRunner implements NativeRunner {
     };
   }
 }
-

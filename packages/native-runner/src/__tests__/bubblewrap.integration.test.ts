@@ -24,7 +24,7 @@ describe("BubblewrapNativeRunner (integration)", () => {
       try {
         await writeFile(join(shadow, "in.txt"), "x\n", "utf8");
         const runner = new BubblewrapNativeRunner({ bwrapPath: "bwrap", shadowDir: shadow, network: "deny" });
-        const res = await runner.exec({ argv: ["bash", "-lc", "cat in.txt > out.txt && echo ok"] });
+        const res = await runner.exec({ argv: ["bash", "-lc", "cat in.txt > out.txt && echo ok"], cwd: "." });
         expect(res.exitCode).toBe(0);
         expect((await readFile(join(shadow, "out.txt"), "utf8")).trim()).toBe("x");
       } finally {
@@ -33,4 +33,3 @@ describe("BubblewrapNativeRunner (integration)", () => {
     },
   );
 });
-
