@@ -19,8 +19,8 @@ Suggested execution order:
 7. `v1-feature-06-command-tool.md` — `Command(argv)` tool over WASI + resource limits
 8. `v1-feature-07-shell-tool.md` — `Shell(script)` compiler (subset B) + pipelines
 9. `v1-feature-08-netfetch-capability.md` — Runner-injected `fetch` capability + policy
+10. `v1-feature-09-wasi-preview1-fs-args-env.md` — WASI argv/env + sandboxed preopen root + minimal FS syscalls
 
 ## Non-v1 / future plans (tracked in design doc)
 
 See “Future Extensions” in `2026-01-27-vision-and-core-design.md`.
-

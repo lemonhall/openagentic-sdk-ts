@@ -7,6 +7,10 @@ export type WasiLimits = {
   maxStderrBytes?: number;
 };
 
+export type WasiFsSnapshot = {
+  files: Record<string, Uint8Array>;
+};
+
 export type WasiExecInput = {
   module: WasiModuleRef;
   argv?: string[];
@@ -14,6 +18,7 @@ export type WasiExecInput = {
   cwd?: string;
   stdin?: Uint8Array;
   netFetch?: import("./netfetch.js").NetFetch;
+  fs?: WasiFsSnapshot;
   limits?: WasiLimits;
 };
 
@@ -23,6 +28,7 @@ export type WasiExecResult = {
   stderr: Uint8Array;
   truncatedStdout: boolean;
   truncatedStderr: boolean;
+  fs?: WasiFsSnapshot;
 };
 
 export interface WasiRunner {
