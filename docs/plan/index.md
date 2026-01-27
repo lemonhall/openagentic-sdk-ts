@@ -1,4 +1,4 @@
-# v1 Plans Index
+# Plans Index
 
 This directory contains the project vision and a set of executable v1 feature plans.
 
@@ -11,6 +11,12 @@ This directory contains the project vision and a set of executable v1 feature pl
 v1 delivered the core “tool-first + WASI + shadow workspace” primitives. v2 is about making the repo **actually run an agent end-to-end** against a real LLM backend (multi-turn, tool calling, streaming), in both Node/server and browser.
 
 - v2 index: `v2-index.md`
+
+## v3 plans (make WASI the default tool engine)
+
+v3 is about closing the gap between the original “same-semantics WASI runner” vision and the v2 runnable slice. Concretely: ship a usable official tool bundle set and make `Bash`/pipelines run via WASI in both browser and server, while keeping the shadow workspace isolation model.
+
+- v3 index: `v3-index.md`
 
 ## v1 feature plans
 

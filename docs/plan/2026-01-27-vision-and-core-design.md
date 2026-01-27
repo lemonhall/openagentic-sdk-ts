@@ -36,6 +36,35 @@ and adding a first-class, sandboxed, WASI-based “Bash-like” toolchain that r
 - WASI network via injected `fetch` with `credentials: "omit"` by default.
 - Permission gating default: **ask once per session, then auto-allow** (user can revoke/reset).
 
+## Status (as of v2 — current repo reality)
+
+The repo now has a runnable end-to-end agent slice (Node + browser) and a “real” baseline toolset, but it is **not yet WASI-first** by default.
+
+**Implemented (v1 + v2):**
+
+- Event-sourced sessions + resumable runtime loop (multi-turn + tool calling + streaming).
+- Shadow workspace abstractions (Memory/OPFS/LocalDir) with explicit import/commit boundaries.
+- Browser runnable demo: OPFS shadow workspace + OpenAI-compatible backend via local proxy (no cookies).
+- Node runnable demo: shadow workspace + real OpenAI call; `/status` + `/commit` boundary.
+- “Claude-style” baseline tools in pure TS (`Read/Write/Edit/Glob/Grep/Bash/WebFetch/WebSearch/TodoWrite/SlashCommand/Skill`), operating on the shadow workspace.
+
+**Present but not the default path in demos:**
+
+- WASI runners (`@openagentic/wasi-runner-web`, `@openagentic/wasi-runner-wasmtime`).
+- WASI bundle plumbing (`@openagentic/bundles`) and WASI tools (`Command(argv)`, `Shell(script)`).
+
+## The WASI gap (what’s still missing vs the original “same semantics WASI runner” story)
+
+The high-level architecture remains valid, but several pieces are still “prototype-grade” or disconnected from the default runnable path:
+
+- **Browser WASI runner is not OPFS-mounted**: current web runner executes in-process with an in-memory FS snapshot; it does not run in a WebWorker with OPFS-backed, synchronous file handles.
+- **Server WASI runner is snapshot-per-exec**: current wasmtime runner shells out to `wasmtime` and uses tempdir snapshots, not a preopened shadow directory workspace.
+- **No WASI network capability wiring yet**: the `netFetch` capability exists in types/utilities, but runners/tools do not currently expose it to WASI modules.
+- **Tool bundles are not production-complete**:
+  - signature verification for the official registry is intentionally deferred (plumbing exists, keys/canonicalization not defined yet),
+  - the sample bundle is minimal, so a WASI-first `Bash` experience would be unusable today.
+- **Default `Bash` is TS-native builtins** (by design for v2 runnable-ness), not `Shell(script)` → `Command(argv)` over WASI bundles.
+
 ## Core architecture (recommended)
 
 ### Layering
@@ -137,10 +166,13 @@ Browser caches bundles in OPFS; server caches them in a configured local directo
 - WASI in browser: choose a shim/runtime and define the hostcall surface (FS + fetch + time + randomness).
 - Python-in-WASI expectations: footprint, stdlib coverage, package management policy, and limits.
 
+## Next milestone (v3)
+
+Make the default “Bash-like” experience **WASI-first** (bundles + runners) while keeping the v2 runnable slice intact. See `docs/plan/v3-index.md`.
+
 ## Future extensions (explicitly out of v1)
 
 - `Shell` advanced syntax: heredoc, subshells, command substitution, arrays, functions.
 - Multi-agent orchestration UI and richer task tooling.
 - Deterministic replay with recorded tool outputs (for offline simulation).
 - Fine-grained network allowlists and policy DSLs.
-
