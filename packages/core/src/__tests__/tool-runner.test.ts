@@ -57,5 +57,34 @@ describe("ToolRunner", () => {
     expect(result.isError).toBe(false);
     expect(result.output.ok).toBe(true);
   });
-});
 
+  it("passes host-injected context to tools", async () => {
+    const store = new InMemorySessionStore();
+    const sessionId = await store.createSession();
+
+    const tools = new ToolRegistry();
+    const tool: Tool = {
+      name: "Ctx",
+      description: "ctx",
+      async run(_input, ctx) {
+        return { workspaceTag: (ctx as any).workspace?.tag ?? null };
+      },
+    };
+    tools.register(tool);
+
+    const gate = new AskOncePermissionGate({ approver: async () => true });
+    const runner = new ToolRunner({
+      tools,
+      permissionGate: gate,
+      sessionStore: store,
+      contextFactory: async () => ({ workspace: { tag: "w" } }),
+    });
+
+    const events: Event[] = [];
+    for await (const e of runner.run(sessionId, { toolUseId: "call_1", name: "Ctx", input: {} })) events.push(e);
+
+    const result = events.at(-1) as any;
+    expect(result.isError).toBe(false);
+    expect(result.output.workspaceTag).toBe("w");
+  });
+});

@@ -9,6 +9,7 @@ export type ToolRunnerOptions = {
   tools: ToolRegistry;
   permissionGate: AskOncePermissionGate;
   sessionStore: SessionStore;
+  contextFactory?: (sessionId: string, toolCall: ToolCall) => Record<string, unknown> | Promise<Record<string, unknown>>;
 };
 
 function now(): number {
@@ -19,15 +20,18 @@ export class ToolRunner {
   readonly #tools: ToolRegistry;
   readonly #gate: AskOncePermissionGate;
   readonly #store: SessionStore;
+  readonly #contextFactory: NonNullable<ToolRunnerOptions["contextFactory"]>;
 
   constructor(options: ToolRunnerOptions) {
     this.#tools = options.tools;
     this.#gate = options.permissionGate;
     this.#store = options.sessionStore;
+    this.#contextFactory = options.contextFactory ?? (() => ({}));
   }
 
   async *run(sessionId: string, toolCall: ToolCall): AsyncGenerator<Event> {
-    const ctx: ToolContext = { sessionId, toolUseId: toolCall.toolUseId };
+    const extra = await this.#contextFactory(sessionId, toolCall);
+    const ctx: ToolContext = { ...(extra ?? {}), sessionId, toolUseId: toolCall.toolUseId };
 
     const useEvent: Event = { type: "tool.use", toolUseId: toolCall.toolUseId, name: toolCall.name, input: toolCall.input, ts: now() };
     await this.#store.appendEvent(sessionId, useEvent);
@@ -95,4 +99,3 @@ export class ToolRunner {
     }
   }
 }
-
