@@ -32,6 +32,11 @@
 - Modify: `packages/wasi-runner-web/src/*` (both in-process and worker runner)
 - Test: runner-specific tests that stub `fetch`
 
+**Implementation note (v4 actual):**
+- WASI preview1 imports are synchronous. In the browser, this is implemented via a **sync XHR** hostcall under an explicit namespace: `openagentic_netfetch.fetch_get(...)`.
+- The web runner records per-call audits into `WasiExecResult.netFetchAudits` (structured-cloneable), so `WorkerWasiRunner` can return them to the main thread.
+- Server `wasmtime` CLI runner cannot currently provide custom imports. The WASI netfetch hostcall is therefore **web-runner only** until the server runner moves to an embeddable runtime (or a standard WASI HTTP interface is adopted).
+
 ### Task 3: ToolRunner auditing events
 
 **Files:**
@@ -40,4 +45,3 @@
 - Docs: `docs/guide/security.md`
 
 **Commit:** `feat(wasi): netfetch capability with policy + audit`
-

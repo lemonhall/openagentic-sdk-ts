@@ -17,7 +17,7 @@ export type WasiExecInput = {
   env?: Record<string, string>;
   cwd?: string;
   stdin?: Uint8Array;
-  netFetch?: import("./netfetch.js").NetFetch;
+  netFetch?: import("./netfetch.js").NetFetchConfig | import("./netfetch.js").NetFetch;
   fs?: WasiFsSnapshot;
   /**
    * Optional host directory to preopen as the sandbox root, for runners that
@@ -35,6 +35,7 @@ export type WasiExecResult = {
   truncatedStdout: boolean;
   truncatedStderr: boolean;
   fs?: WasiFsSnapshot;
+  netFetchAudits?: import("./netfetch.js").NetFetchAuditRecord[];
 };
 
 export interface WasiRunner {

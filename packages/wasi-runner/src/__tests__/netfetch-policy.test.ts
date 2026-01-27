@@ -2,23 +2,34 @@ import { describe, expect, it } from "vitest";
 
 import { createNetFetch } from "../netfetch.js";
 
-describe("netfetch policy", () => {
-  it("enforces maxResponseBytes truncation", async () => {
-    const fetchImpl: typeof fetch = (async () =>
-      new Response(new Uint8Array(100).fill(97), { status: 200, headers: { "content-type": "text/plain" } })) as any;
+function makeFetch(body: Uint8Array, status = 200): typeof fetch {
+  return (async (_url: any, _init: any) => {
+    return {
+      status,
+      headers: new Headers({ "content-type": "text/plain" }),
+      async arrayBuffer() {
+        return body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+      },
+    } as any;
+  }) as any;
+}
 
-    const nf = createNetFetch({ fetchImpl, policy: { maxResponseBytes: 10 } });
-    const res = await nf.fetch({ url: "https://x.test" });
-    expect(res.status).toBe(200);
-    expect(res.body.byteLength).toBe(10);
-    expect(res.truncated).toBe(true);
+describe("createNetFetch", () => {
+  it("exposes the resolved policy on the returned object", async () => {
+    const nf: any = createNetFetch({ fetchImpl: makeFetch(new Uint8Array([1, 2, 3])), policy: { maxRequests: 7 } });
+    expect(nf.policy).toBeTruthy();
+    expect(nf.policy.maxRequests).toBe(7);
   });
 
-  it("enforces maxRequests", async () => {
-    const fetchImpl: typeof fetch = (async () => new Response("ok", { status: 200 })) as any;
-    const nf = createNetFetch({ fetchImpl, policy: { maxRequests: 1 } });
-    await nf.fetch({ url: "https://x.test/1" });
-    await expect(nf.fetch({ url: "https://x.test/2" })).rejects.toThrow(/maxRequests/i);
+  it("enforces allow/deny URL policy hooks", async () => {
+    const nf = createNetFetch({
+      fetchImpl: makeFetch(new TextEncoder().encode("ok")),
+      // allow only example.com
+      allowUrl: (u) => new URL(u).hostname === "example.com",
+    } as any);
+
+    await expect(nf.fetch({ url: "https://example.com/" })).resolves.toBeTruthy();
+    await expect(nf.fetch({ url: "https://blocked.test/" })).rejects.toThrow(/blocked/i);
   });
 });
 

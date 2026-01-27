@@ -13,6 +13,22 @@ export type NetFetchResponse = {
   truncated: boolean;
 };
 
+export type NetFetchAuditRecord = {
+  url: string;
+  status: number;
+  bytes: number;
+  truncated: boolean;
+  durationMs: number;
+};
+
+/**
+ * Structured-cloneable netfetch capability config for WASI runners (worker-safe).
+ * Runners are free to implement the transport, but must enforce the policy.
+ */
+export type NetFetchConfig = {
+  policy?: Partial<NetFetchPolicy>;
+};
+
 export type NetFetchPolicy = {
   timeoutMs: number;
   maxResponseBytes: number;
@@ -22,6 +38,8 @@ export type NetFetchPolicy = {
 };
 
 export interface NetFetch {
+  /** The resolved policy used by this instance (best-effort for auditing/introspection). */
+  readonly policy?: NetFetchPolicy;
   fetch(req: NetFetchRequest): Promise<NetFetchResponse>;
 }
 
@@ -29,9 +47,11 @@ export type NetFetchFactoryOptions = {
   policy?: Partial<NetFetchPolicy>;
   fetchImpl?: typeof fetch;
   credentials?: RequestCredentials;
+  allowUrl?: (url: string) => boolean;
+  denyUrl?: (url: string) => boolean;
 };
 
-const DEFAULT_POLICY: NetFetchPolicy = {
+export const DEFAULT_NETFETCH_POLICY: NetFetchPolicy = {
   timeoutMs: 30_000,
   maxResponseBytes: 1_000_000,
   maxRequests: 200,
@@ -72,7 +92,7 @@ function normalizeHeaders(h: Headers): Record<string, string> {
 }
 
 export function createNetFetch(options: NetFetchFactoryOptions = {}): NetFetch {
-  const policy: NetFetchPolicy = { ...DEFAULT_POLICY, ...(options.policy ?? {}) };
+  const policy: NetFetchPolicy = { ...DEFAULT_NETFETCH_POLICY, ...(options.policy ?? {}) };
   const sem = new Semaphore(policy.maxConcurrent);
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   if (typeof fetchImpl !== "function") throw new Error("NetFetch requires global fetch or fetchImpl");
@@ -80,8 +100,16 @@ export function createNetFetch(options: NetFetchFactoryOptions = {}): NetFetch {
   let requests = 0;
   let totalBytes = 0;
 
+  const allowUrl = options.allowUrl ?? (() => true);
+  const denyUrl = options.denyUrl ?? (() => false);
+
   return {
+    policy,
     async fetch(req: NetFetchRequest): Promise<NetFetchResponse> {
+      const url = String(req.url ?? "").trim();
+      if (!url) throw new Error("netfetch: url is required");
+      if (denyUrl(url) || !allowUrl(url)) throw new Error("netfetch: blocked by policy");
+
       requests++;
       if (requests > policy.maxRequests) throw new Error("netfetch: maxRequests exceeded");
       if (totalBytes > policy.maxTotalResponseBytes) throw new Error("netfetch: maxTotalResponseBytes exceeded");
@@ -99,7 +127,7 @@ export function createNetFetch(options: NetFetchFactoryOptions = {}): NetFetch {
               ? req.body
               : undefined;
 
-        const res = await fetchImpl(req.url, {
+        const res = await fetchImpl(url, {
           method: req.method ?? (body ? "POST" : "GET"),
           headers: req.headers,
           body: body as any,

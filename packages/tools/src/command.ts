@@ -64,6 +64,8 @@ export class CommandTool implements Tool {
 
     const preopenDir = (_ctx as any)?.wasi?.preopenDir;
     const mountDir = typeof preopenDir === "string" && preopenDir.trim() ? preopenDir : null;
+    const netFetch = (_ctx as any)?.netFetch;
+    const emitEvent = (_ctx as any)?.emitEvent as ((ev: any) => Promise<void>) | undefined;
 
     const argv = input.argv;
     if (!Array.isArray(argv) || argv.length === 0 || !argv.every((x) => typeof x === "string" && x.length > 0)) {
@@ -88,6 +90,7 @@ export class CommandTool implements Tool {
         env: typeof input.env === "object" && input.env ? (input.env as Record<string, string>) : undefined,
         cwd: typeof input.cwd === "string" ? input.cwd : undefined,
         stdin: typeof input.stdin === "string" ? new TextEncoder().encode(input.stdin) : undefined,
+        netFetch: netFetch ?? undefined,
         fs: beforeFs ?? undefined,
         preopenDir: mountDir ?? undefined,
         limits:
@@ -108,6 +111,21 @@ export class CommandTool implements Tool {
         }
         for (const p of afterPaths) {
           await workspace.writeFile(p, after[p]!);
+        }
+      }
+
+      if (emitEvent && Array.isArray((res as any).netFetchAudits)) {
+        for (const a of (res as any).netFetchAudits as any[]) {
+          await emitEvent({
+            type: "net.fetch",
+            toolUseId: (_ctx as any).toolUseId,
+            url: String(a.url ?? ""),
+            status: Number(a.status ?? 0),
+            bytes: Number(a.bytes ?? 0),
+            truncated: Boolean(a.truncated ?? false),
+            durationMs: Number(a.durationMs ?? 0),
+            ts: Date.now(),
+          });
         }
       }
 

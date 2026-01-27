@@ -111,13 +111,28 @@ export class WebFetchTool implements Tool {
 
     const chain: string[] = [requestedUrl];
     let current = requestedUrl;
+    const emitEvent = (_ctx as any)?.emitEvent as ((ev: any) => Promise<void>) | undefined;
 
     for (let i = 0; i <= this.#maxRedirects; i++) {
+      const started = Date.now();
       const res = await this.#fetch(current, { method: "GET", headers, redirect: "manual", credentials: "omit" });
       const status = Number(res.status ?? 0);
       const location = res.headers?.get?.("location");
+      const durationMs = Date.now() - started;
 
       if ([301, 302, 303, 307, 308].includes(status) && typeof location === "string" && location) {
+        if (emitEvent) {
+          await emitEvent({
+            type: "net.fetch",
+            toolUseId: (_ctx as any).toolUseId,
+            url: current,
+            status,
+            bytes: 0,
+            truncated: false,
+            durationMs,
+            ts: Date.now(),
+          });
+        }
         if (i === this.#maxRedirects) throw new Error(`WebFetch: too many redirects (>${this.#maxRedirects})`);
         const next = new URL(location, current).toString();
         validateUrl(next, this.#allowPrivateNetworks);
@@ -127,7 +142,21 @@ export class WebFetchTool implements Tool {
       }
 
       let body = new Uint8Array(await res.arrayBuffer());
-      if (body.byteLength > this.#maxBytes) body = body.slice(0, this.#maxBytes);
+      const truncated = body.byteLength > this.#maxBytes;
+      if (truncated) body = body.slice(0, this.#maxBytes);
+
+      if (emitEvent) {
+        await emitEvent({
+          type: "net.fetch",
+          toolUseId: (_ctx as any).toolUseId,
+          url: current,
+          status,
+          bytes: body.byteLength,
+          truncated,
+          durationMs,
+          ts: Date.now(),
+        });
+      }
 
       const contentType = res.headers?.get?.("content-type") ?? null;
       const text = new TextDecoder().decode(body);
@@ -145,4 +174,3 @@ export class WebFetchTool implements Tool {
     throw new Error(`WebFetch: too many redirects (>${this.#maxRedirects})`);
   }
 }
-

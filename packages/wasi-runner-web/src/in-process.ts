@@ -37,6 +37,7 @@ const WASI_ERRNO_BADF = 8;
 const WASI_ERRNO_INVAL = 28;
 const WASI_ERRNO_NOENT = 44;
 const WASI_ERRNO_EXIST = 20;
+const WASI_ERRNO_NOTCAPABLE = 76;
 const WASI_PREOPEN_FD = 3;
 
 const WASI_OFLAGS_CREAT = 1 << 0;
@@ -48,6 +49,14 @@ const WASI_WHENCE_END = 2;
 
 const WASI_FILETYPE_DIRECTORY = 3;
 const WASI_FILETYPE_REGULAR_FILE = 4;
+
+const DEFAULT_NETFETCH_POLICY = {
+  timeoutMs: 30_000,
+  maxResponseBytes: 1_000_000,
+  maxRequests: 200,
+  maxTotalResponseBytes: 50_000_000,
+  maxConcurrent: 4,
+} as const;
 
 function normalizeSandboxPath(p: string): string | null {
   if (!p) return null;
@@ -96,6 +105,17 @@ export class InProcessWasiRunner implements WasiRunner {
 
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
+
+    const netPolicy = { ...DEFAULT_NETFETCH_POLICY, ...(((input.netFetch as any)?.policy as any) ?? {}) } as typeof DEFAULT_NETFETCH_POLICY;
+    let netRequests = 0;
+    let netTotalBytes = 0;
+    const netFetchAudits: Array<{
+      url: string;
+      status: number;
+      bytes: number;
+      truncated: boolean;
+      durationMs: number;
+    }> = [];
 
     const writeU32 = (ptr: number, val: number) => {
       if (!memory) throw new Error("memory not set");
@@ -430,6 +450,59 @@ export class InProcessWasiRunner implements WasiRunner {
           return WASI_ERRNO_SUCCESS;
         },
       },
+      openagentic_netfetch: {
+        // preview1-style sync hostcall: performs a GET and copies response bytes into wasm memory.
+        // Signature:
+        //   fetch_get(url_ptr, url_len, out_ptr, out_max, out_n_ptr, out_status_ptr, out_trunc_ptr) -> errno
+        fetch_get(urlPtr: number, urlLen: number, outPtr: number, outMax: number, outNPtr: number, outStatusPtr: number, outTruncPtr: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          if (!input.netFetch) return WASI_ERRNO_NOTCAPABLE;
+          if (netRequests + 1 > netPolicy.maxRequests) return WASI_ERRNO_INVAL;
+          if (netTotalBytes > netPolicy.maxTotalResponseBytes) return WASI_ERRNO_INVAL;
+
+          const url = readString(urlPtr, urlLen);
+          if (!/^https?:\/\//i.test(url)) return WASI_ERRNO_INVAL;
+
+          const XHR: any = (globalThis as any).XMLHttpRequest;
+          if (typeof XHR !== "function") return WASI_ERRNO_NOTCAPABLE;
+
+          const started = Date.now();
+          let status = 0;
+          let raw = new Uint8Array();
+          try {
+            const xhr = new XHR();
+            xhr.open("GET", url, false);
+            xhr.responseType = "arraybuffer";
+            xhr.send(null);
+            status = Number(xhr.status ?? 0);
+            const ab = xhr.response instanceof ArrayBuffer ? xhr.response : new ArrayBuffer(0);
+            raw = new Uint8Array(ab);
+          } catch {
+            return WASI_ERRNO_INVAL;
+          }
+
+          netRequests++;
+
+          const maxResp = Math.max(0, netPolicy.maxResponseBytes | 0);
+          const sliced = raw.subarray(0, maxResp);
+          const policyTruncated = sliced.byteLength < raw.byteLength;
+
+          const writeLen = Math.max(0, Math.min(outMax | 0, sliced.byteLength));
+          readBytes(outPtr, writeLen).set(sliced.subarray(0, writeLen));
+          writeU32(outNPtr, writeLen >>> 0);
+          writeU32(outStatusPtr, status >>> 0);
+
+          const bufTruncated = writeLen < sliced.byteLength;
+          const truncated = policyTruncated || bufTruncated;
+          readBytes(outTruncPtr, 1)[0] = truncated ? 1 : 0;
+
+          netTotalBytes += writeLen;
+          if (netTotalBytes > netPolicy.maxTotalResponseBytes) return WASI_ERRNO_INVAL;
+
+          netFetchAudits.push({ url, status, bytes: writeLen, truncated, durationMs: Date.now() - started });
+          return WASI_ERRNO_SUCCESS;
+        },
+      },
     };
 
     const instantiated = (await WebAssembly.instantiate(
@@ -458,6 +531,7 @@ export class InProcessWasiRunner implements WasiRunner {
       truncatedStdout,
       truncatedStderr,
       fs: input.fs ? { files: Object.fromEntries(Array.from(fsFiles.entries()).map(([p, b]) => [p, new Uint8Array(b)])) } : undefined,
+      netFetchAudits: netFetchAudits.length ? netFetchAudits : undefined,
     };
   }
 }

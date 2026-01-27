@@ -108,14 +108,17 @@ export async function createBrowserAgent(options: CreateBrowserAgentOptions): Pr
     tools,
     permissionGate,
     sessionStore: options.sessionStore,
-    contextFactory: async () => ({
+    contextFactory: async (sessionId) => ({
       workspace: options.workspace,
-      wasi: options.enableWasiBash && sharedWasiRunner instanceof WorkerWasiRunner
-        ? {
-            // In the browser, `preopenDir` is interpreted as the OPFS directory name for the mounted shadow workspace.
-            preopenDir: (options.wasiPreopenDir ?? "openagentic-demo-web").trim() || "openagentic-demo-web",
-          }
-        : undefined,
+      netFetch: options.enableWasiBash ? { policy: {} } : undefined,
+      emitEvent: async (ev: any) => options.sessionStore.appendEvent(sessionId, ev),
+      wasi:
+        options.enableWasiBash && sharedWasiRunner instanceof WorkerWasiRunner
+          ? {
+              // In the browser, `preopenDir` is interpreted as the OPFS directory name for the mounted shadow workspace.
+              preopenDir: (options.wasiPreopenDir ?? "openagentic-demo-web").trim() || "openagentic-demo-web",
+            }
+          : undefined,
     }),
   });
 

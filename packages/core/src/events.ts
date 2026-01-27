@@ -43,6 +43,16 @@ export type ToolResultEvent = EventBase & {
   errorMessage?: string;
 };
 
+export type NetFetchEvent = EventBase & {
+  type: "net.fetch";
+  toolUseId: string;
+  url: string;
+  status: number;
+  bytes: number;
+  truncated: boolean;
+  durationMs: number;
+};
+
 export type PermissionQuestionEvent = EventBase & {
   type: "permission.question";
   questionId: string;
@@ -70,6 +80,7 @@ export type Event =
   | AssistantDeltaEvent
   | ToolUseEvent
   | ToolResultEvent
+  | NetFetchEvent
   | PermissionQuestionEvent
   | PermissionDecisionEvent
   | ResultEvent

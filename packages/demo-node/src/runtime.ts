@@ -136,8 +136,10 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
     tools,
     permissionGate,
     sessionStore: options.sessionStore,
-    contextFactory: async () => ({
+    contextFactory: async (sessionId) => ({
       workspace: options.workspace,
+      netFetch: enableWasiBash ? { policy: {} } : undefined,
+      emitEvent: async (ev: any) => options.sessionStore.appendEvent(sessionId, ev),
       ...(options.wasiPreopenDir ? { wasi: { preopenDir: options.wasiPreopenDir } } : {}),
     }),
   });
