@@ -162,6 +162,58 @@
 .oaFileRow {
   padding: 6px 0;
   border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.oaFileIcon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oaIconSvg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.oaFileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oaIcon--dir {
+  color: #60a5fa;
+}
+.oaIcon--ts {
+  color: #38bdf8;
+}
+.oaIcon--js {
+  color: #fbbf24;
+}
+.oaIcon--json {
+  color: #a78bfa;
+}
+.oaIcon--md {
+  color: #34d399;
+}
+.oaIcon--image {
+  color: #fb7185;
+}
+.oaIcon--wasm {
+  color: #f97316;
+}
+.oaIcon--lock {
+  color: #9ca3af;
+}
+.oaIcon--config {
+  color: #22c55e;
 }
 
 .oaMuted {
@@ -176,4 +228,3 @@
     grid-template-columns: 1fr;
   }
 }
-

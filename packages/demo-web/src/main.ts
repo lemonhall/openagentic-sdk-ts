@@ -13,6 +13,7 @@ import { createController } from "./controller.js";
 import { clearDirectoryHandle } from "./fs-utils.js";
 import { shouldSubmitOnKeydown } from "./composer.js";
 import { reduceChatState } from "./state.js";
+import { iconKindForEntry, iconSvgForKind } from "./file-icons.js";
 
 import "./styles.css";
 
@@ -121,7 +122,18 @@ async function main(): Promise<void> {
     for (const e of ents) {
       const row = document.createElement("div");
       row.className = "oaFileRow";
-      row.textContent = `${e.type} ${e.name}`;
+      row.title = e.name;
+      const kind = iconKindForEntry(e);
+
+      const icon = document.createElement("span");
+      icon.className = `oaFileIcon oaIcon--${kind}`;
+      icon.innerHTML = iconSvgForKind(kind);
+
+      const label = document.createElement("span");
+      label.className = "oaFileName";
+      label.textContent = e.name;
+
+      row.append(icon, label);
       filesEl.appendChild(row);
     }
   }
