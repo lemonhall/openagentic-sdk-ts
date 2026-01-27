@@ -42,6 +42,12 @@ v7 expands server sandbox backends across Linux/macOS/Windows (best-effort, with
 
 - v7 index: `v7-index.md`
 
+## v8 plans (close remaining vision gaps)
+
+v8 returns to the original “vision story” and closes the remaining gaps that still feel prototype-grade: browser session durability, reviewable changesets UI, server WASI `netFetch` correctness, a real Python runtime story, hosted official bundles, and an e2e “happy path” test slice.
+
+- v8 index: `v8-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:
