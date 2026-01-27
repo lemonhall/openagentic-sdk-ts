@@ -41,6 +41,7 @@ In TS we still need (minimum viable):
 7. `v2-feature-06-node-runner.md` — Node runnable demo: session store + shadow workspace + real OpenAI call
 8. `v2-feature-07-browser-runner.md` — Browser runnable demo: OPFS shadow workspace + real OpenAI call (no cookies)
 9. `v2-feature-08-guides-and-quickstart.md` — user-facing quickstarts (Node + browser) and security/tooling guides
+10. `v2-feature-09-claude-style-toolset.md` — toolset parity: Read/Write/Edit/Glob/Grep/Bash/WebFetch/WebSearch/TodoWrite/SlashCommand/Skill
 
 ## Non-goals for v2 (explicitly deferred)
 
