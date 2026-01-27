@@ -9,6 +9,7 @@ import {
   GlobTool,
   GrepTool,
   ListDirTool,
+  NativeBashTool,
   PythonTool,
   ReadTool,
   ReadFileTool,
@@ -23,6 +24,8 @@ import {
 import type { BundleCache, InstalledBundle, RegistryClient } from "@openagentic/bundles";
 import { InProcessWasiRunner } from "@openagentic/wasi-runner-web";
 import { WasmtimeWasiRunner, createBubblewrapProcessSandbox } from "@openagentic/wasi-runner-wasmtime";
+import { BubblewrapNativeRunner } from "@openagentic/native-runner";
+import type { NativeRunner } from "@openagentic/native-runner";
 import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +41,8 @@ export type CreateDemoRuntimeOptions = {
   maxSteps?: number;
   enableWasiBash?: boolean;
   wasiPreopenDir?: string;
+  toolEngine?: "wasi" | "native";
+  nativeRunner?: NativeRunner;
 };
 
 function repoRootFromHere(): string {
@@ -154,7 +159,8 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
   toolRunner: ToolRunner;
   permissionGate: AskOncePermissionGate;
 }> {
-  const enableWasiBash = options.enableWasiBash !== false;
+  const toolEngine = options.toolEngine ?? ((process.env.OPENAGENTIC_TOOL_ENGINE as any) || "wasi");
+  const enableWasiBash = toolEngine !== "native" && options.enableWasiBash !== false;
 
   const tools = new ToolRegistry();
   tools.register(new ListDirTool());
@@ -166,7 +172,32 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
   tools.register(new EditTool());
   tools.register(new GlobTool());
   tools.register(new GrepTool());
-  if (enableWasiBash) {
+  if (toolEngine === "native") {
+    if (!options.wasiPreopenDir) throw new Error("demo-node(native): wasiPreopenDir (shadow dir path) is required");
+    const runner =
+      options.nativeRunner ??
+      (() => {
+        if (process.platform !== "linux") throw new Error("demo-node(native): OPENAGENTIC_TOOL_ENGINE=native is Linux-only");
+
+        const bwrapPath = process.env.OPENAGENTIC_BWRAP_PATH || "bwrap";
+        if (!hasBwrap(bwrapPath)) throw new Error(`demo-node(native): bwrap not found in PATH (${bwrapPath})`);
+
+        const network = (process.env.OPENAGENTIC_BWRAP_NETWORK || "deny") as "allow" | "deny";
+        const roBinds = (process.env.OPENAGENTIC_BWRAP_RO_BINDS || "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        return new BubblewrapNativeRunner({
+          bwrapPath,
+          shadowDir: options.wasiPreopenDir,
+          network: network === "allow" ? "allow" : "deny",
+          ...(roBinds.length ? { roBinds } : {}),
+        });
+      })();
+
+    tools.register(new NativeBashTool({ runner }));
+  } else if (enableWasiBash) {
     const root = sampleBundleRoot();
     const cache = fileCache(root);
     const coreUtils = await installSampleCoreUtils(root, cache);

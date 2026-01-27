@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@openagentic/bundles": "workspace:*",
+    "@openagentic/native-runner": "workspace:*",
     "@openagentic/providers-openai": "workspace:*",
     "@openagentic/sdk-core": "workspace:*",
     "@openagentic/sdk-node": "workspace:*",

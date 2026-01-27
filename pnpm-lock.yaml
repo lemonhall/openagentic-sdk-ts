@@ -41,6 +41,9 @@ importers:
       '@openagentic/bundles':
         specifier: workspace:*
         version: link:../bundles
+      '@openagentic/native-runner':
+        specifier: workspace:*
+        version: link:../native-runner
       '@openagentic/providers-openai':
         specifier: workspace:*
         version: link:../providers-openai
@@ -165,6 +168,9 @@ importers:
       '@openagentic/bundles':
         specifier: workspace:*
         version: link:../bundles
+      '@openagentic/native-runner':
+        specifier: workspace:*
+        version: link:../native-runner
       '@openagentic/sdk-core':
         specifier: workspace:*
         version: link:../core
