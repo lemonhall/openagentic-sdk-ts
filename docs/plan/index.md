@@ -24,6 +24,12 @@ v4 closes the remaining “初心” gaps: worker/OPFS WASI in browser, mounted 
 
 - v4 index: `v4-index.md`
 
+## v5 plans (pluggable outer sandboxes)
+
+v5 adds a stable server-side “outer sandbox adapter” contract so deployments can harden tool execution by wrapping the WASI runner process with OS/VM sandboxes (Bubblewrap first; others later).
+
+- v5 index: `v5-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:

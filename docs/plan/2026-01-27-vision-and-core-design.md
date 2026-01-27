@@ -15,6 +15,9 @@ and adding a first-class, sandboxed, WASI-based “Bash-like” toolchain that r
 - Browser (WebWorker + web WASI shim)
 - Server (WASI host such as `wasmtime`)
 
+and a pluggable “outer sandbox” layer so server deployments can harden tool execution using
+production-grade OS sandboxes (without changing tool semantics).
+
 ## Constraints (non-negotiables)
 
 - **Shadow workspace**: the agent never directly mutates the user’s real filesystem.
@@ -24,6 +27,8 @@ and adding a first-class, sandboxed, WASI-based “Bash-like” toolchain that r
 - **Same semantics across browser/server**: “shell behavior” is implemented in TS host logic, not by relying on an OS shell.
 - **Bash is core**: a Bash-like experience is achieved via WASI tool execution + a `Shell(script)` compiler.
 - **Network is allowed for WASI tools** (runner-injected `fetch`), but **must not** use user cookies/credentials.
+- **Extensible sandboxing**: WASI is the *default* portable sandbox, but server deployments may wrap it with an
+  OS-level sandbox (Linux namespaces, seccomp, VM sandboxes) via a stable adapter interface.
 
 ## Success criteria (v1)
 
@@ -36,29 +41,62 @@ and adding a first-class, sandboxed, WASI-based “Bash-like” toolchain that r
 - WASI network via injected `fetch` with `credentials: "omit"` by default.
 - Permission gating default: **ask once per session, then auto-allow** (user can revoke/reset).
 
-## Status (as of v2 — current repo reality)
+## Status (as of v4 — current repo reality)
 
-The repo now has a runnable end-to-end agent slice (Node + browser) and a “real” baseline toolset, but it is **not yet WASI-first** by default.
+The repo now has a runnable end-to-end agent slice (Node + browser) and the default tool path is **WASI-first** in both environments, with safe fallbacks.
 
-**Implemented (v1 + v2):**
+**Implemented (v1–v4):**
 
 - Event-sourced sessions + resumable runtime loop (multi-turn + tool calling + streaming).
 - Shadow workspace abstractions (Memory/OPFS/LocalDir) with explicit import/commit boundaries.
 - Browser runnable demo: OPFS shadow workspace + OpenAI-compatible backend via local proxy (no cookies).
 - Node runnable demo: shadow workspace + real OpenAI call; `/status` + `/commit` boundary.
 - “Claude-style” baseline tools in pure TS (`Read/Write/Edit/Glob/Grep/Bash/WebFetch/WebSearch/TodoWrite/SlashCommand/Skill`), operating on the shadow workspace.
+- WASI-first `Bash` via `Shell(script)` + `Command(argv)` backed by signed official bundles and WASI runners.
+- Browser: Worker runner with OPFS-backed workspace mounting semantics (worker-cached snapshot + persisted deltas).
+- Node: `wasmtime` runner with mounted shadow directory (no snapshot-per-exec round-trips).
+- WASI netfetch: policy + auditing in the browser WASI runner; server support depends on runner embedding (tracked).
 
 **Present and used by default in demos:**
 
 - WASI runners (`@openagentic/wasi-runner-web`, `@openagentic/wasi-runner-wasmtime`).
 - WASI bundle plumbing (`@openagentic/bundles`) and WASI tools (`Command(argv)`, `Shell(script)`).
 
-## The WASI gap (what’s still missing vs the original “same semantics WASI runner” story)
+## Remaining gaps vs the original story
 
 The high-level architecture remains valid, but several pieces are still “prototype-grade” or disconnected from the default runnable path:
 
-- **WASI network capability is still incomplete**: the `netFetch` capability exists in types/utilities, but runners/tools do not yet expose it end-to-end to WASI modules with consistent policy + auditing.
+- **Server-side WASI netfetch is still incomplete**: the browser runner wires `netFetch` end-to-end (policy + audits), but the current server runner is `wasmtime` CLI based and cannot easily expose custom host imports. This likely requires an embedded runtime or a standard WASI HTTP/component model.
 - **Python is partially delivered**: the `Python` tool + `lang-python` bundle wiring exists, but the shipped demo runtime is currently a minimal placeholder WASI module. A real MicroPython/CPython WASI runtime bundle + packaging policy is still tracked.
+
+## Sandbox backends (WASI-first, pluggable hardening)
+
+WASI is the portable baseline sandbox. On the server, many teams want an additional, production-hardened boundary.
+The design goal is to support **“sandbox stacking”**:
+
+- Inner sandbox: **WASI** (same semantics as browser; runs the exact same tool bundles).
+- Outer sandbox (optional, server-only): OS/VM sandbox that constrains the *runner process* (files, syscalls, resources).
+
+This keeps tool semantics stable while allowing different deployment hardening strategies.
+
+### Example: Bubblewrap (`bwrap`) as an outer sandbox
+
+Bubblewrap is a Linux-only sandbox tool (Flatpak’s core primitive) built on Linux namespaces.
+It can run `wasmtime` (or any runner) inside a restricted mount namespace, optionally with `seccomp` filters and
+resource limits. This is attractive for production server deployments, but it is not portable to macOS/Windows.
+
+### Adapter contract (high-level)
+
+The SDK should expose a stable server-side “sandbox adapter” interface that can:
+
+- Provide an isolated filesystem view (bind-mount a shadow workspace root as read/write).
+- Apply resource limits (CPU time, memory, output size, wall time).
+- Control network access (deny by default, or explicit allow policies).
+- Emit audit records (what was executed, what was mounted, what was denied).
+
+The default adapter remains “no outer sandbox” (WASI-only), but adapters can be plugged in per deployment.
+
+Implementation tracking: `docs/plan/v5-index.md`.
 
 ## Core architecture (recommended)
 
@@ -171,3 +209,4 @@ Make the default “Bash-like” experience **WASI-first** (bundles + runners) w
 - Multi-agent orchestration UI and richer task tooling.
 - Deterministic replay with recorded tool outputs (for offline simulation).
 - Fine-grained network allowlists and policy DSLs.
+- Pluggable outer sandboxes on server (e.g., Bubblewrap, nsjail, gVisor, Firecracker) to harden the runner process while keeping WASI tool semantics.
