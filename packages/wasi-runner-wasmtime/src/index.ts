@@ -103,9 +103,17 @@ export class WasmtimeWasiRunner implements WasiRunner {
             args,
             env: toStringEnv(process.env),
             mounts: [
-              { kind: "dir", label: "runner-tmp", hostPath: dir, guestPath: "/__runner__", mode: "rw" },
+              { kind: "dir", label: "runner-tmp", hostPath: dir, guestPath: "/__runner__", mode: "rw" as const },
               ...(preopenDir
-                ? [{ kind: "dir" as const, label: "shadow-workspace", hostPath: preopenDir, guestPath: "/workspace", mode: "rw" }]
+                ? [
+                    {
+                      kind: "dir" as const,
+                      label: "shadow-workspace",
+                      hostPath: preopenDir,
+                      guestPath: "/workspace",
+                      mode: "rw" as const,
+                    },
+                  ]
                 : []),
             ],
           },
