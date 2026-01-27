@@ -1,0 +1,13 @@
+{
+  "name": "openagentic-sdk-ts",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "type": "module",
+  "scripts": {
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {}
+}
+
