@@ -36,6 +36,12 @@ v6 adds a second **server-side execution engine** that runs host-native commands
 
 - v6 index: `v6-index.md`
 
+## v7 plans (cross-platform sandboxes)
+
+v7 expands server sandbox backends across Linux/macOS/Windows (best-effort, with clear limitations) while keeping the core tool APIs stable.
+
+- v7 index: `v7-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:
