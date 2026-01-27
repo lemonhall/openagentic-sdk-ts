@@ -45,3 +45,5 @@ Open the URL printed by Vite.
 - Click “Import → OPFS” to copy it into the OPFS shadow workspace.
 - Run prompts in the chat; tools operate on OPFS, not your real folder.
 - Click “Commit → Real” to write OPFS changes back to the selected folder.
+
+Note: `WebSearch` requires a server-side `TAVILY_API_KEY` and is not enabled in the browser demo by default.

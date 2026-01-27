@@ -6,6 +6,7 @@
 - pnpm 10+
 - An OpenAI API key in `OPENAI_API_KEY`
 - Optional: `OPENAI_BASE_URL` for OpenAI-compatible providers (example: `https://your-provider.example/v1`)
+- Optional: `TAVILY_API_KEY` to enable `WebSearch`
 
 ## Install
 
