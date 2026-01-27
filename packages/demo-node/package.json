@@ -1,0 +1,25 @@
+{
+  "name": "@openagentic/demo-node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@openagentic/providers-openai": "workspace:*",
+    "@openagentic/sdk-core": "workspace:*",
+    "@openagentic/sdk-node": "workspace:*",
+    "@openagentic/tools": "workspace:*",
+    "@openagentic/workspace": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test": "vitest run",
+    "start": "node dist/main.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.9"
+  }
+}
+
