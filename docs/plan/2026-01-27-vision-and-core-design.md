@@ -58,7 +58,7 @@ The repo now has a runnable end-to-end agent slice (Node + browser) and a “rea
 The high-level architecture remains valid, but several pieces are still “prototype-grade” or disconnected from the default runnable path:
 
 - **WASI network capability is still incomplete**: the `netFetch` capability exists in types/utilities, but runners/tools do not yet expose it end-to-end to WASI modules with consistent policy + auditing.
-- **Python is still tracked but not fully delivered**: the `Python` tool needs a real WASI runtime bundle (phase A: MicroPython; phase B: CPython) and a clear packaging policy.
+- **Python is partially delivered**: the `Python` tool + `lang-python` bundle wiring exists, but the shipped demo runtime is currently a minimal placeholder WASI module. A real MicroPython/CPython WASI runtime bundle + packaging policy is still tracked.
 
 ## Core architecture (recommended)
 
