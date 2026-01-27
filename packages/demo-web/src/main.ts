@@ -52,8 +52,8 @@ async function main(): Promise<void> {
           <input id="model" class="oaInput" value="gpt-5.2" />
         </label>
         <label class="oaToggle">
-          <input id="wasiBash" type="checkbox" />
-          <span>WASI Bash (preview)</span>
+          <input id="wasiBash" type="checkbox" checked />
+          <span>WASI Bash</span>
         </label>
         <div class="oaButtons">
           <button id="chooseDir" class="oaBtn">Choose Directory</button>
