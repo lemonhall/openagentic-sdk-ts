@@ -24,6 +24,39 @@ On the server you can add an **outer sandbox** around the WASI runner process (�
 
 This is useful when you want stronger isolation than “only preopen the shadow dir”, without introducing a second toolchain.
 
+## Sequence diagram (server with Bubblewrap)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User/Operator
+  participant A as AgentRuntime
+  participant TR as ToolRunner
+  participant CMD as CommandTool (WASI)
+  participant WR as WasmtimeWasiRunner
+  participant PS as ProcessSandbox adapter
+  participant BW as bubblewrap (bwrap)
+  participant WM as wasmtime
+  participant M as WASI module (tool)
+
+  U->>A: user message
+  A->>TR: tool call (e.g. Bash/Shell → Command(argv))
+  TR->>CMD: execute argv in shadow workspace
+  CMD->>WR: execModule({ preopenDir: shadowDir, argv, env, limits })
+  WR->>PS: wrap({ cmd: wasmtime, args, mounts })
+  PS-->>WR: { cmd: bwrap, args: [bwrap..., wasmtime, ...rewrittenArgs] }
+  WR->>BW: spawn(bwrap ... wasmtime ...)
+  BW->>WM: exec in restricted mount/ns
+  WM->>M: run WASI module with preopened /workspace
+  M-->>WM: stdout/stderr/exit
+  WM-->>BW: exit code + output
+  BW-->>WR: exit code + output
+  WR-->>CMD: WasiExecResult (+ sandboxAudits)
+  CMD-->>TR: tool result (+ optional forwarded audits)
+  TR-->>A: tool result
+  A-->>U: assistant message
+```
+
 ## Bubblewrap (`bwrap`) outer sandbox (Linux-only)
 
 Bubblewrap is a production-grade Linux sandbox based on namespaces (and commonly used by Flatpak). In this project it is treated as an *optional wrapper* around the server runner process.
