@@ -4,6 +4,22 @@
 
 Tools operate on a *shadow workspace* (in-memory on Node demos, OPFS in browser demos). The real filesystem is only modified on explicit commit actions.
 
+## Outer sandboxing (server hardening)
+
+WASI is the portable baseline sandbox. On the server you can optionally add a second isolation boundary around the WASI runner process (“sandbox stacking”).
+
+### Bubblewrap (`bwrap`) (Linux-only)
+
+The Node demo can run `wasmtime` under Bubblewrap:
+
+- Enable: `OPENAGENTIC_PROCESS_SANDBOX=bwrap`
+- Require it (fail fast if unavailable): `OPENAGENTIC_PROCESS_SANDBOX_REQUIRED=1`
+- Override binary: `OPENAGENTIC_BWRAP_PATH=bwrap`
+- Network policy: `OPENAGENTIC_BWRAP_NETWORK=allow|deny`
+- Read-only system binds (comma-separated): `OPENAGENTIC_BWRAP_RO_BINDS=/usr,/bin,/lib,/lib64,/etc`
+
+If Bubblewrap is not available (or not supported on the current OS), the demo prints a warning and continues without the outer sandbox unless it is required.
+
 ## Network safety
 
 All SDK fetches default to:

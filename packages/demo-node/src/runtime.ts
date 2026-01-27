@@ -22,7 +22,7 @@ import {
 } from "@openagentic/tools";
 import type { BundleCache, InstalledBundle, RegistryClient } from "@openagentic/bundles";
 import { InProcessWasiRunner } from "@openagentic/wasi-runner-web";
-import { WasmtimeWasiRunner } from "@openagentic/wasi-runner-wasmtime";
+import { WasmtimeWasiRunner, createBubblewrapProcessSandbox } from "@openagentic/wasi-runner-wasmtime";
 import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,6 +72,52 @@ function hasWasmtime(): boolean {
   } catch {
     return false;
   }
+}
+
+function hasBwrap(bwrapPath: string): boolean {
+  try {
+    execSync(`command -v ${bwrapPath}`, { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function demoProcessSandbox(): ReturnType<typeof createBubblewrapProcessSandbox> | undefined {
+  const kind = process.env.OPENAGENTIC_PROCESS_SANDBOX;
+  if (!kind) return undefined;
+
+  const required = process.env.OPENAGENTIC_PROCESS_SANDBOX_REQUIRED === "1";
+  if (kind !== "bwrap") {
+    if (required) throw new Error(`demo-node: unsupported OPENAGENTIC_PROCESS_SANDBOX=${kind}`);
+    console.warn(`demo-node: ignoring unsupported OPENAGENTIC_PROCESS_SANDBOX=${kind}`);
+    return undefined;
+  }
+
+  if (process.platform !== "linux") {
+    if (required) throw new Error("demo-node: Bubblewrap is Linux-only (OPENAGENTIC_PROCESS_SANDBOX_REQUIRED=1)");
+    console.warn("demo-node: Bubblewrap is Linux-only; continuing without process sandbox");
+    return undefined;
+  }
+
+  const bwrapPath = process.env.OPENAGENTIC_BWRAP_PATH || "bwrap";
+  if (!hasBwrap(bwrapPath)) {
+    if (required) throw new Error(`demo-node: bwrap not found in PATH (${bwrapPath})`);
+    console.warn(`demo-node: bwrap not found (${bwrapPath}); continuing without process sandbox`);
+    return undefined;
+  }
+
+  const network = (process.env.OPENAGENTIC_BWRAP_NETWORK || "allow") as "allow" | "deny";
+  const roBinds = (process.env.OPENAGENTIC_BWRAP_RO_BINDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return createBubblewrapProcessSandbox({
+    bwrapPath,
+    network: network === "deny" ? "deny" : "allow",
+    ...(roBinds.length ? { roBinds } : {}),
+  });
 }
 
 function sampleRegistry(rootDir: string): RegistryClient {
@@ -125,7 +171,9 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
     const cache = fileCache(root);
     const coreUtils = await installSampleCoreUtils(root, cache);
     const langPython = await installSampleLangPython(root, cache);
-    const runner = hasWasmtime() ? new WasmtimeWasiRunner() : new InProcessWasiRunner();
+    const runner = hasWasmtime()
+      ? new WasmtimeWasiRunner({ processSandbox: demoProcessSandbox() })
+      : new InProcessWasiRunner();
     const command = new CommandTool({ runner, bundles: [coreUtils, langPython], cache });
     tools.register(new BashTool({ wasiCommand: command }));
     tools.register(new PythonTool({ command }));

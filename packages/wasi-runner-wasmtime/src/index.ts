@@ -9,6 +9,8 @@ import { writeSnapshotToDir, readSnapshotFromDir } from "./snapshot-io.js";
 import { buildWasmtimeCliArgs } from "./wasmtime-args.js";
 import type { ProcessSandbox } from "./process-sandbox.js";
 import { applyProcessSandbox } from "./process-sandbox.js";
+export type { ProcessSandbox, ProcessSandboxCommand, ProcessSandboxMount, ProcessSandboxWrappedCommand } from "./process-sandbox.js";
+export { createBubblewrapProcessSandbox } from "./bubblewrap.js";
 
 function findInPath(cmd: string): string | null {
   const sep = process.platform === "win32" ? ";" : ":";
