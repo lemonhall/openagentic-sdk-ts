@@ -28,7 +28,7 @@ const backend: Record<SandboxBackendName, SandboxBackend> = {
       return createBubblewrapProcessSandbox({
         bwrapPath: config.options.bwrapPath,
         network: config.options.network,
-        roBinds: config.options.roBinds,
+        ...(config.options.roBinds.length ? { roBinds: config.options.roBinds } : {}),
       });
     },
     createNativeRunner({ config, shadowDir }) {
@@ -36,7 +36,7 @@ const backend: Record<SandboxBackendName, SandboxBackend> = {
       return new BubblewrapNativeRunner({
         bwrapPath: config.options.bwrapPath,
         network: config.options.network,
-        roBinds: config.options.roBinds,
+        ...(config.options.roBinds.length ? { roBinds: config.options.roBinds } : {}),
         shadowDir,
       });
     },
@@ -82,4 +82,3 @@ const backend: Record<SandboxBackendName, SandboxBackend> = {
 export function getSandboxBackend(name: SandboxBackendName): SandboxBackend {
   return backend[name];
 }
-
