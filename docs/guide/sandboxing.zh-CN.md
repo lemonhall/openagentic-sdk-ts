@@ -130,6 +130,33 @@ nsjail --mode o --quiet -- bash -lc "echo hello from nsjail"
 OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run linux-sandbox.integration
 ```
 
+## macOS：sandbox-exec（best-effort 后端）
+
+部分 macOS 版本会提供 `sandbox-exec`。当它可用时，可以作为 **服务器侧 native 执行** 的 best-effort 沙箱边界。
+
+限制：
+
+- 可用性随 macOS 版本变化。
+- 它不是 Linux 那种 mount namespace 方案，更接近 **基于策略的访问控制**；建议默认当作加固（hardening），不要把它当作“完全等价的隔离”。
+
+检查是否存在：
+
+```bash
+command -v sandbox-exec
+```
+
+Smoke 命令：
+
+```bash
+sandbox-exec -p "(version 1)(allow default)" -- bash -lc "echo hello from sandbox-exec"
+```
+
+集成测试（条件跳过）：
+
+```bash
+OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run macos-sandbox.integration
+```
+
 ## Bubblewrap（`bwrap`）外层沙箱（仅 Linux）
 
 Bubblewrap 是基于 Linux namespaces 的生产级沙箱工具（Flatpak 的核心原语之一）。在本项目里，它被当作 **可选的“外层包装器”**：用于包住 `wasmtime` 这个 runner 进程，而不是替代 WASI。

@@ -127,6 +127,33 @@ nsjail --mode o --quiet -- bash -lc "echo hello from nsjail"
 OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run linux-sandbox.integration
 ```
 
+## macOS: sandbox-exec (best-effort backend)
+
+Some macOS versions ship `sandbox-exec`. When available, it can provide a best-effort sandbox boundary for **server-side native execution**.
+
+Limitations:
+
+- Availability varies by macOS version.
+- It does not provide Linux-style mount namespaces; treat it as **policy-based hardening**.
+
+Check availability:
+
+```bash
+command -v sandbox-exec
+```
+
+Smoke command:
+
+```bash
+sandbox-exec -p "(version 1)(allow default)" -- bash -lc "echo hello from sandbox-exec"
+```
+
+Integration test (skip-gated):
+
+```bash
+OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run macos-sandbox.integration
+```
+
 ## Bubblewrap (`bwrap`) outer sandbox (Linux-only)
 
 Bubblewrap is a production-grade Linux sandbox based on namespaces (and commonly used by Flatpak). In this project it is treated as an *optional wrapper* around the server runner process.

@@ -5,6 +5,7 @@ import { createBubblewrapProcessSandbox } from "@openagentic/wasi-runner-wasmtim
 
 import type { SandboxBackendConfig, SandboxBackendName } from "./config.js";
 import { createNsjailProcessSandbox, NsjailNativeRunner } from "./linux-nsjail.js";
+import { createSandboxExecProcessSandbox, SandboxExecNativeRunner } from "./macos-sandbox-exec.js";
 
 export type SandboxBackend = {
   name: SandboxBackendName;
@@ -64,11 +65,20 @@ const backend: Record<SandboxBackendName, SandboxBackend> = {
   },
   "sandbox-exec": {
     name: "sandbox-exec",
-    createProcessSandbox() {
-      throw new Error("sandbox: sandbox-exec backend not implemented yet");
+    createProcessSandbox({ config }) {
+      if (config.backend !== "sandbox-exec") throw new Error("sandbox: backend mismatch (expected sandbox-exec)");
+      return createSandboxExecProcessSandbox({
+        sandboxExecPath: config.options.sandboxExecPath,
+        network: config.options.network,
+      });
     },
-    createNativeRunner() {
-      throw new Error("sandbox: sandbox-exec backend not implemented yet");
+    createNativeRunner({ config, shadowDir }) {
+      if (config.backend !== "sandbox-exec") throw new Error("sandbox: backend mismatch (expected sandbox-exec)");
+      return new SandboxExecNativeRunner({
+        sandboxExecPath: config.options.sandboxExecPath,
+        network: config.options.network,
+        shadowDir,
+      });
     },
   },
   jobobject: {

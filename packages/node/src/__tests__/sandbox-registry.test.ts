@@ -27,4 +27,12 @@ describe("getSandboxBackend", () => {
     const ps = b.createProcessSandbox({ config: cfg });
     expect(ps?.name).toBe("nsjail");
   });
+
+  it("wires the macos sandbox-exec backend", () => {
+    const cfg = parseSandboxConfig({ backend: "sandbox-exec", options: { network: "deny" } });
+    const b = getSandboxBackend("sandbox-exec");
+    expect(b.name).toBe("sandbox-exec");
+    const ps = b.createProcessSandbox({ config: cfg });
+    expect(ps?.name).toBe("sandbox-exec");
+  });
 });
