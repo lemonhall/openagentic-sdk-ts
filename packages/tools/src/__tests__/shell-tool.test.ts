@@ -54,6 +54,21 @@ describe("ShellTool", () => {
     expect(res.stdout).toBe("hi\n");
   });
 
+  it("pipes echo into grep", async () => {
+    const root = sampleBundleRoot();
+    const bundle = await loadCoreUtilsBundle(root);
+    const cache = fileCache(root);
+    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache });
+    const shell = new ShellTool({ command });
+
+    const ws = new MemoryWorkspace();
+    const res = (await shell.run(
+      { script: "echo | grep hi" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+    expect(res.stdout).toBe("hi\n");
+  });
+
   it("redirects stdout to a file", async () => {
     const root = sampleBundleRoot();
     const bundle = await loadCoreUtilsBundle(root);
@@ -112,4 +127,3 @@ describe("ShellTool", () => {
     expect(out2.stdout).toBe("X");
   });
 });
-

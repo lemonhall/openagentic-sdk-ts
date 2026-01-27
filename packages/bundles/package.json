@@ -18,12 +18,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:sample-core-utils": "node ./scripts/generate-sample-core-utils.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "wabt": "^1.0.37"
   }
 }
-
