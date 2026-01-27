@@ -11,6 +11,21 @@ inside the shadow workspace via `NativeRunner` (Bubblewrap runner in production)
 
 **Tech Stack:** TypeScript, Node, Vitest.
 
+## Performance note (important)
+
+This tool starts **one process per tool call**:
+
+- Node `spawn()` → `bwrap` → `bash -lc ...`
+
+That startup overhead is negligible for heavier commands but can be noticeable if an agent emits many tiny commands.
+
+Mitigation strategies (no code changes required):
+
+- Encourage the model to **batch related steps** into one `bash -lc` script (`cmd1; cmd2; cmd3`).
+- Prefer a single `Bash` call per “subtask” (file search, edit, verify), not one per shell builtin.
+
+Planned follow-ups (code changes): see `docs/plan/v6-feature-05-performance-optimizations.md`.
+
 ### Task 1: Implement the tool
 
 **Files:**
@@ -71,4 +86,3 @@ git add packages/tools
 git commit -m "feat(tools): native bash tool"
 git push
 ```
-
