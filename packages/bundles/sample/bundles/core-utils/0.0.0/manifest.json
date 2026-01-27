@@ -3,14 +3,14 @@
   "version": "0.0.0",
   "assets": [
     {
-      "path": "echo.wasm",
-      "sha256": "3e10583318ceaa931ea05424628cfd7e599a3fe0ad7586f9df09088e195a6034",
-      "size": 216
-    },
-    {
       "path": "cat.wasm",
       "sha256": "809d63b741bceb410a117bea377f2e834d53aa1a6f3fd53144e9f7f0fb22d33e",
       "size": 300
+    },
+    {
+      "path": "echo.wasm",
+      "sha256": "3e10583318ceaa931ea05424628cfd7e599a3fe0ad7586f9df09088e195a6034",
+      "size": 216
     },
     {
       "path": "grep.wasm",
@@ -20,16 +20,21 @@
   ],
   "commands": [
     {
-      "name": "echo",
-      "modulePath": "echo.wasm"
-    },
-    {
       "name": "cat",
       "modulePath": "cat.wasm"
+    },
+    {
+      "name": "echo",
+      "modulePath": "echo.wasm"
     },
     {
       "name": "grep",
       "modulePath": "grep.wasm"
     }
-  ]
+  ],
+  "signature": {
+    "keyId": "dev-2026-01",
+    "alg": "ed25519",
+    "sigBase64": "zpyCQYkBT/pfx2XVBvVdXyAW11/x02Uv5MRm8UmpD3KSlzyAtB2/hRoid8L2xZa4rtBqxQoc5Czs/rjAaCEGAQ=="
+  }
 }
