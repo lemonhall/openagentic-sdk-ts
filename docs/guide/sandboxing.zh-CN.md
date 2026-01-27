@@ -18,6 +18,16 @@ OpenAgentic SDK TS 的目标是同时做到两件事：
 - **WASI 沙箱**：工具以 WASI 模块执行，只能看到预先打开（preopen）的影子工作区目录。
 - **不需要 Docker**：默认路径是“同语义 WASI runner”（例如 `wasmtime`）。
 
+## 执行引擎（服务器侧）
+
+本仓库支持（或计划支持）两类服务器侧 **执行引擎**：
+
+1) **WASI 引擎（可移植、与浏览器对齐）**  
+   执行签名的 WASI tool bundles。默认选择，也是最接近“浏览器/服务器同语义”的路径。
+
+2) **Native 引擎（仅 Linux、使用宿主机工具）**  
+   在 Bubblewrap 沙箱中直接运行宿主机原生命令（例如 `bash` / `grep` / `git`）。它牺牲可移植性与浏览器对齐，换取部署便利（不用分发 bundles）。
+
 ### 服务器侧（可选加固）
 
 在服务器上可以再加一层 **外层沙箱**，把 WASI runner 进程包一层（“沙箱叠加 / sandbox stacking”）：
@@ -79,6 +89,12 @@ sequenceDiagram
 - `Native 引擎`：在 Bubblewrap 中执行宿主机原生命令/二进制（Linux-only；除非再引入一套 Linux userland/toolchain 分发策略，否则很难与浏览器语义对齐）。
 
 当前仓库 **没有实现** native 引擎。v5 只实现了“外层沙箱适配器”，用于加固现有的 WASI 路径。
+
+## Native 引擎示意图（v6）
+
+下面这张图对应 **服务器侧 native 引擎 + Bubblewrap** 的执行链路（渲染版）：
+
+![Native 引擎（Bubblewrap）时序图](native_sandbox_sequenceDiagram_v6.png)
 
 ## Bubblewrap（`bwrap`）外层沙箱（仅 Linux）
 
@@ -165,6 +181,21 @@ OPENAGENTIC_PROCESS_SANDBOX=bwrap \
 OPENAI_API_KEY=... \
 pnpm -C packages/demo-node start -- --project . --once "Use Bash to run: echo hi"
 ```
+
+## Native 引擎（demo-node）
+
+如果要让 `Bash` 直接使用宿主机原生工具并运行在 Bubblewrap 里（仅 Linux）：
+
+```bash
+OPENAGENTIC_TOOL_ENGINE=native \
+OPENAI_API_KEY=... \
+pnpm -C packages/demo-node start -- --project . --once "Use Bash to run: echo hi"
+```
+
+注意：
+
+- Native 引擎依赖宿主机的 `bash`/`grep` 等工具，行为与可用性取决于宿主机环境。
+- 更安全的默认建议是禁网：`OPENAGENTIC_BWRAP_NETWORK=deny`。
 
 相关环境变量：
 

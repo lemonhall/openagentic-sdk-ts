@@ -22,6 +22,16 @@ The Node demo can run `wasmtime` under Bubblewrap:
 
 If Bubblewrap is not available (or not supported on the current OS), the demo prints a warning and continues without the outer sandbox unless it is required.
 
+## Native engine (Linux-only) tradeoffs
+
+If you opt into `OPENAGENTIC_TOOL_ENGINE=native`, the `Bash` tool runs host-native commands under Bubblewrap instead of running signed WASI bundles.
+
+Implications:
+
+- Tool availability/behavior depends on the host (less reproducible than bundles).
+- Isolation relies on Bubblewrap policy (mounts, network namespace, limits).
+- Prefer `OPENAGENTIC_BWRAP_NETWORK=deny` unless the workflow requires network.
+
 ## Network safety
 
 All SDK fetches default to:

@@ -15,6 +15,16 @@ OpenAgentic SDK TS is designed around **portable tool semantics** and **defense 
 - **WASI sandbox**: tools run as WASI modules with only the configured preopened shadow workspace directory.
 - **No Docker required**: the default server path uses a “same-semantics WASI runner” (e.g. `wasmtime`).
 
+## Engines (server)
+
+This repo supports (or plans) two different server-side **execution engines**:
+
+1. **WASI engine (portable, browser-aligned)**  
+   Runs signed WASI tool bundles. This is the default and the closest to “same semantics across browser/server”.
+
+2. **Native engine (Linux-only, host tools)**  
+   Runs host-native commands (e.g. `bash`, `grep`, `git`) inside a sandboxed shadow workspace. This trades away portability and browser parity for operational convenience.
+
 ### Server (optional hardening)
 
 On the server you can add an **outer sandbox** around the WASI runner process (“sandbox stacking”):
@@ -76,6 +86,12 @@ If you want Bubblewrap and WASI to be “peers” in the sense of **choosing one
 - `Native engine`: runs host-native binaries under Bubblewrap (Linux-only; does not match browser semantics unless you also ship a Linux userland bundle strategy).
 
 This repo does **not** implement the native engine today. v5 only adds the *outer sandbox adapter* so deployments can harden the existing WASI path.
+
+## Native engine diagram (v6)
+
+Rendered diagram for the **server native engine + Bubblewrap** flow:
+
+![Native engine (Bubblewrap) sequence diagram](native_sandbox_sequenceDiagram_v6.png)
 
 ## Bubblewrap (`bwrap`) outer sandbox (Linux-only)
 
@@ -174,3 +190,18 @@ OPENAGENTIC_PROCESS_SANDBOX=bwrap \
 OPENAI_API_KEY=... \
 pnpm -C packages/demo-node start -- --project . --once "Use Bash to run: echo hi"
 ```
+
+## Native engine (demo-node)
+
+To run `Bash` using host-native tools under Bubblewrap (Linux-only):
+
+```bash
+OPENAGENTIC_TOOL_ENGINE=native \
+OPENAI_API_KEY=... \
+pnpm -C packages/demo-node start -- --project . --once "Use Bash to run: echo hi"
+```
+
+Notes:
+
+- Native engine uses host `bash`/`grep`/etc. Tool availability and behavior depends on the host.
+- Default recommendation is to deny network in Bubblewrap: `OPENAGENTIC_BWRAP_NETWORK=deny`.
