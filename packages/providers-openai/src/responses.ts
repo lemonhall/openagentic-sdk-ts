@@ -52,7 +52,10 @@ export class OpenAIResponsesProvider implements ModelProvider {
   constructor(options: OpenAIResponsesProviderOptions = {}) {
     this.#baseUrl = (options.baseUrl ?? "https://api.openai.com/v1").replace(/\/+$/, "");
     this.#apiKeyHeader = options.apiKeyHeader ?? "authorization";
-    this.#fetch = options.fetchImpl ?? globalThis.fetch;
+    // In some browsers, `fetch` requires being called with `this === window` (or `globalThis`).
+    // If we store the function reference and call it as a property (e.g. `this.#fetch(...)`),
+    // the receiver becomes the provider instance and can throw "Illegal invocation".
+    this.#fetch = options.fetchImpl ?? (globalThis.fetch ? globalThis.fetch.bind(globalThis) : (undefined as any));
     this.#requireApiKey = options.requireApiKey ?? true;
     if (typeof this.#fetch !== "function") throw new Error("OpenAIResponsesProvider: fetch is required");
   }
