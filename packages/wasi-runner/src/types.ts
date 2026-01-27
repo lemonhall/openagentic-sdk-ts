@@ -19,6 +19,12 @@ export type WasiExecInput = {
   stdin?: Uint8Array;
   netFetch?: import("./netfetch.js").NetFetch;
   fs?: WasiFsSnapshot;
+  /**
+   * Optional host directory to preopen as the sandbox root, for runners that
+   * can mount a real directory (e.g. `wasmtime`). When set, runners should not
+   * use snapshot read/write for filesystem state.
+   */
+  preopenDir?: string;
   limits?: WasiLimits;
 };
 

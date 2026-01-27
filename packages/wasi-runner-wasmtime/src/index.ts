@@ -44,6 +44,7 @@ export class WasmtimeWasiRunner implements WasiRunner {
 
   async execModule(input: WasiExecInput): Promise<WasiExecResult> {
     if (input.module.kind !== "bytes") throw new Error("WasmtimeWasiRunner currently supports module.kind=bytes only");
+    if (input.preopenDir && input.fs) throw new Error("WasmtimeWasiRunner: preopenDir and fs snapshot are mutually exclusive");
 
     const maxStdout = input.limits?.maxStdoutBytes ?? 1024 * 1024;
     const maxStderr = input.limits?.maxStderrBytes ?? 1024 * 1024;
@@ -55,7 +56,9 @@ export class WasmtimeWasiRunner implements WasiRunner {
       await writeFile(wasmPath, input.module.bytes);
 
       let preopenDir: string | undefined;
-      if (input.fs) {
+      if (input.preopenDir) {
+        preopenDir = input.preopenDir;
+      } else if (input.fs) {
         preopenDir = join(dir, "fs");
         await mkdir(preopenDir, { recursive: true });
         await writeSnapshotToDir(preopenDir, input.fs);
@@ -99,7 +102,7 @@ export class WasmtimeWasiRunner implements WasiRunner {
         cp.on("close", (code) => resolve(code ?? 0));
       });
 
-      if (preopenDir) {
+      if (preopenDir && !input.preopenDir) {
         fsOut = await readSnapshotFromDir(preopenDir);
       }
 

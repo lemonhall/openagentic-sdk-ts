@@ -62,6 +62,9 @@ export class CommandTool implements Tool {
     const workspace = (_ctx as any).workspace as Workspace | undefined;
     if (!workspace) throw new Error("Command: workspace is required in ToolContext");
 
+    const preopenDir = (_ctx as any)?.wasi?.preopenDir;
+    const mountDir = typeof preopenDir === "string" && preopenDir.trim() ? preopenDir : null;
+
     const argv = input.argv;
     if (!Array.isArray(argv) || argv.length === 0 || !argv.every((x) => typeof x === "string" && x.length > 0)) {
       throw new Error("Command: 'argv' must be a non-empty string[]");
@@ -77,7 +80,7 @@ export class CommandTool implements Tool {
       const bytes = await this.#cache.read(moduleKey);
       if (!bytes) throw new Error(`Command: module not found in cache: ${moduleKey}`);
 
-      const beforeFs = { files: await snapshotWorkspaceFiles(workspace) };
+      const beforeFs = mountDir ? null : { files: await snapshotWorkspaceFiles(workspace) };
 
       const res = await this.#runner.execModule({
         module: { kind: "bytes", bytes },
@@ -85,7 +88,8 @@ export class CommandTool implements Tool {
         env: typeof input.env === "object" && input.env ? (input.env as Record<string, string>) : undefined,
         cwd: typeof input.cwd === "string" ? input.cwd : undefined,
         stdin: typeof input.stdin === "string" ? new TextEncoder().encode(input.stdin) : undefined,
-        fs: beforeFs,
+        fs: beforeFs ?? undefined,
+        preopenDir: mountDir ?? undefined,
         limits:
           typeof input.limits === "object" && input.limits
             ? {
@@ -95,14 +99,16 @@ export class CommandTool implements Tool {
             : undefined,
       });
 
-      const after = res.fs?.files ?? beforeFs.files;
-      const beforePaths = new Set(Object.keys(beforeFs.files));
-      const afterPaths = new Set(Object.keys(after));
-      for (const p of beforePaths) {
-        if (!afterPaths.has(p)) await workspace.deleteFile(p);
-      }
-      for (const p of afterPaths) {
-        await workspace.writeFile(p, after[p]!);
+      if (!mountDir) {
+        const after = res.fs?.files ?? beforeFs!.files;
+        const beforePaths = new Set(Object.keys(beforeFs!.files));
+        const afterPaths = new Set(Object.keys(after));
+        for (const p of beforePaths) {
+          if (!afterPaths.has(p)) await workspace.deleteFile(p);
+        }
+        for (const p of afterPaths) {
+          await workspace.writeFile(p, after[p]!);
+        }
       }
 
       return {
