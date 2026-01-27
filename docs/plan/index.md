@@ -6,6 +6,12 @@ This directory contains the project vision and a set of executable v1 feature pl
 
 - Vision + core design: `2026-01-27-vision-and-core-design.md`
 
+## v2 plans (make it runnable)
+
+v1 delivered the core “tool-first + WASI + shadow workspace” primitives. v2 is about making the repo **actually run an agent end-to-end** against a real LLM backend (multi-turn, tool calling, streaming), in both Node/server and browser.
+
+- v2 index: `v2-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:
