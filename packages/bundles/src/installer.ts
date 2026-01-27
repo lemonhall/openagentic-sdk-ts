@@ -1,5 +1,9 @@
 import { parseBundleManifest } from "./manifest.js";
 import type { BundleInstallerOptions, InstalledBundle } from "./registry.js";
+import { OFFICIAL_MANIFEST_PUBLIC_KEYS_JWK } from "./registry.js";
+import { canonicalJsonBytes } from "./canonical-json.js";
+import { unsignedManifestPayload } from "./manifest.js";
+import { verifyEd25519Signature } from "./signature.js";
 import { verifySha256 } from "./verify.js";
 
 function joinUrl(baseUrl: string, path: string): string {
@@ -19,6 +23,22 @@ export async function installBundle(
 
   const rootPath = `bundles/${manifest.name}/${manifest.version}`;
 
+  if (options.requireSignature) {
+    const sig = manifest.signature;
+    if (!sig) throw new Error("manifest signature required");
+    if (sig.alg !== "ed25519") throw new Error("unsupported signature algorithm");
+
+    const keys = options.registry.isOfficial
+      ? { ...OFFICIAL_MANIFEST_PUBLIC_KEYS_JWK, ...(options.publicKeys ?? {}) }
+      : options.publicKeys ?? {};
+    const key = keys[sig.keyId];
+    if (!key) throw new Error(`unknown signature keyId: ${sig.keyId}`);
+
+    const message = canonicalJsonBytes(unsignedManifestPayload(manifest));
+    const ok = await verifyEd25519Signature({ publicKey: key, message, signatureBase64: sig.sigBase64 });
+    if (!ok) throw new Error("invalid manifest signature");
+  }
+
   for (const asset of manifest.assets) {
     const assetPath = `${rootPath}/${asset.path}`;
     const cached = await options.cache.read(assetPath);
@@ -29,12 +49,6 @@ export async function installBundle(
     const bytes = await options.registry.fetchBytes(joinUrl(options.registry.baseUrl, assetPath));
     await verifySha256(bytes, asset.sha256);
     await options.cache.write(assetPath, bytes);
-  }
-
-  // Signature verification is deferred in v1: the registry plumbing exists,
-  // but official signing keys and canonicalization are defined later.
-  if (options.requireSignature && options.registry.isOfficial) {
-    throw new Error("signature verification not implemented");
   }
 
   return { manifest, rootPath };

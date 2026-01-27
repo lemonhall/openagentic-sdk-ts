@@ -17,8 +17,20 @@ export type RegistryClient = {
 export type BundleInstallerOptions = {
   registry: RegistryClient;
   cache: BundleCache;
-  publicKeys?: Record<string, CryptoKey>;
+  publicKeys?: Record<string, CryptoKey | JsonWebKey>;
   requireSignature?: boolean;
+};
+
+export const OFFICIAL_MANIFEST_PUBLIC_KEYS_JWK: Record<string, JsonWebKey> = {
+  // Dev/test key used for local bundles and CI. Rotate for real registries.
+  "dev-2026-01": {
+    kty: "OKP",
+    crv: "Ed25519",
+    alg: "Ed25519",
+    x: "ZzLClo23XmctaEt4zX--ubVfFQnuBEvHMSCwuLBpr4Q",
+    ext: true,
+    key_ops: ["verify"],
+  },
 };
 
 export type InstalledBundle = {

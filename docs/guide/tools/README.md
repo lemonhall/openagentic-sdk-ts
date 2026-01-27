@@ -8,6 +8,7 @@ This SDK ships a baseline toolset that is designed to work with the **shadow wor
 - Text is UTF-8 unless explicitly stated.
 - Hosts may gate tools via permissions; the demos auto-approve.
 - Browser networking uses `fetch(..., { credentials: "omit" })` (no cookies).
+- Tool bundles should be installed from **official registries** and verified (sha256 + signatures).
 
 ## File + Workspace Tools
 

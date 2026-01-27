@@ -76,3 +76,11 @@ export function parseBundleManifest(raw: unknown): BundleManifest {
   return { name, version, assets, commands, ...(signature ? { signature } : {}) };
 }
 
+export function unsignedManifestPayload(manifest: BundleManifest): Omit<BundleManifest, "signature"> {
+  return {
+    name: manifest.name,
+    version: manifest.version,
+    assets: [...manifest.assets].sort((a, b) => a.path.localeCompare(b.path)),
+    commands: [...manifest.commands].sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
