@@ -3,3 +3,8 @@ export { ShellTool } from "./shell.js";
 export { ReadFileTool } from "./workspace/read-file.js";
 export { WriteFileTool } from "./workspace/write-file.js";
 export { ListDirTool } from "./workspace/list-dir.js";
+export { ReadTool } from "./claude/read.js";
+export { WriteTool } from "./claude/write.js";
+export { EditTool } from "./claude/edit.js";
+export { GlobTool } from "./claude/glob.js";
+export { GrepTool } from "./claude/grep.js";
