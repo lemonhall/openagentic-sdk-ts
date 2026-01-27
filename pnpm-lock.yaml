@@ -38,6 +38,9 @@ importers:
 
   packages/demo-node:
     dependencies:
+      '@openagentic/bundles':
+        specifier: workspace:*
+        version: link:../bundles
       '@openagentic/providers-openai':
         specifier: workspace:*
         version: link:../providers-openai
@@ -50,6 +53,9 @@ importers:
       '@openagentic/tools':
         specifier: workspace:*
         version: link:../tools
+      '@openagentic/wasi-runner-web':
+        specifier: workspace:*
+        version: link:../wasi-runner-web
       '@openagentic/workspace':
         specifier: workspace:*
         version: link:../workspace

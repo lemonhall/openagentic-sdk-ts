@@ -69,5 +69,26 @@ describe("demo-node runtime wiring", () => {
     expect(events.some((e) => e.type === "assistant.message" && e.text === "done")).toBe(true);
     expect(events.some((e) => e.type === "result" && e.finalText === "done")).toBe(true);
   });
-});
 
+  it("can enable WASI-backed Bash", async () => {
+    const createDemoRuntime = (runtimeMod as any).createDemoRuntime as
+      | ((opts: any) => { runtime: any; tools: any })
+      | undefined;
+    expect(typeof createDemoRuntime).toBe("function");
+    if (typeof createDemoRuntime !== "function") return;
+
+    const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
+    const workspace = new MemoryWorkspace();
+    const provider = new FakeProvider() as any;
+
+    const { tools } = createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model", enableWasiBash: true });
+
+    const bash = tools.get("Bash");
+    const out = (await bash.run(
+      { command: "echo" },
+      { sessionId: "s", toolUseId: "t", workspace } as any,
+    )) as any;
+
+    expect(out.stdout).toBe("hi\n");
+  });
+});

@@ -22,6 +22,14 @@ Run against a local project directory (the agent operates on a shadow workspace 
 OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project .
 ```
 
+### WASI-backed `Bash` (preview)
+
+Enable a WASI backend for the `Bash` tool (currently uses the local sample `core-utils` bundle: `echo`, `cat`, `grep`):
+
+```bash
+OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . --wasi
+```
+
 ### OpenAI-compatible providers (custom base URL)
 
 If your provider uses a non-OpenAI domain but is API-compatible, set `OPENAI_BASE_URL` (must include `/v1`):
