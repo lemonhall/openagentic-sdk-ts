@@ -27,27 +27,31 @@ By the end of v2, a developer can:
   - OpenAI Responses provider (`complete()` + `stream()`)
 - `@openagentic/tools`
   - Extend with “workspace file tools” (non-WASI) so the agent can operate without requiring a large WASI tool bundle to exist on day one
-- `examples/node-runner` (new workspace package) OR `packages/node-runner` (new internal package)
+- `packages/demo-node` (new workspace package)
   - proves end-to-end on Node
-- `examples/browser-runner` (new)
-  - proves end-to-end on browser + OPFS
+- `packages/demo-proxy` (new workspace package)
+  - local OpenAI proxy for browser dev (CORS + API key isolation)
+- `packages/demo-web` (new workspace package)
+  - proves end-to-end in browser + OPFS
 
 ## Success criteria (hard)
 
 - `pnpm test` passes
 - Node demo can run with:
-  - `OPENAI_API_KEY=... pnpm -C examples/node-runner start`
+  - `OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project .`
 - Browser demo can run with:
-  - `pnpm -C examples/browser-runner dev`
+  - `OPENAI_API_KEY=... pnpm -C packages/demo-proxy start`
+  - `pnpm -C packages/demo-web dev`
 
 ## Task 1: Add v2 demo skeletons (no LLM yet)
 
 **Files:**
-- Create: `examples/node-runner/package.json`
-- Create: `examples/node-runner/src/main.ts`
-- Create: `examples/browser-runner/package.json`
-- Create: `examples/browser-runner/src/main.ts`
-- Modify: `pnpm-workspace.yaml`
+- Create: `packages/demo-node/package.json`
+- Create: `packages/demo-node/src/main.ts`
+- Create: `packages/demo-proxy/package.json`
+- Create: `packages/demo-proxy/src/main.ts`
+- Create: `packages/demo-web/package.json`
+- Create: `packages/demo-web/src/main.ts`
 
 **Step 1: Add “smoke” tests that demos compile**
 
@@ -84,4 +88,3 @@ Expected: PASS
 **Step 2: Commit**
 
 Commit message: `feat(core): define v2 public API`
-

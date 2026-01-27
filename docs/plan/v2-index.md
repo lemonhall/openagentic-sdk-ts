@@ -40,6 +40,7 @@ In TS we still need (minimum viable):
 6. `v2-feature-05-basic-workspace-tools.md` — non-WASI “file tools” on the shadow workspace (Read/Write/List/Glob/Grep)
 7. `v2-feature-06-node-runner.md` — Node runnable demo: session store + shadow workspace + real OpenAI call
 8. `v2-feature-07-browser-runner.md` — Browser runnable demo: OPFS shadow workspace + real OpenAI call (no cookies)
+9. `v2-feature-08-guides-and-quickstart.md` — user-facing quickstarts (Node + browser) and security/tooling guides
 
 ## Non-goals for v2 (explicitly deferred)
 
@@ -47,4 +48,3 @@ In TS we still need (minimum viable):
 - Compaction/summarization and long-context overflow handling (v3+)
 - MCP server/client integrations (v3+)
 - A full “official tool bundle image” with many Unix tools (v3+)
-
