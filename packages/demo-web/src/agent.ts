@@ -1,7 +1,7 @@
 import type { ModelProvider, SessionStore } from "@openagentic/sdk-core";
 import { AgentRuntime, AskOncePermissionGate, ToolRegistry, ToolRunner } from "@openagentic/sdk-core";
 import { OpenAIResponsesProvider } from "@openagentic/providers-openai";
-import { parseBundleManifest } from "@openagentic/bundles";
+import { createRegistryClient, installBundle } from "@openagentic/bundles";
 import type { BundleCache, InstalledBundle } from "@openagentic/bundles";
 import type { Workspace } from "@openagentic/workspace";
 import {
@@ -33,56 +33,30 @@ export type CreateBrowserAgentOptions = {
   wasiBundleBaseUrl?: string;
 };
 
-function joinUrl(baseUrl: string, path: string): string {
-  const b = (baseUrl ?? "").replace(/\/+$/, "");
-  const p = String(path ?? "").replace(/^\/+/, "");
-  if (!b) return `/${p}`;
-  return `${b}/${p}`;
-}
-
-function createBrowserBundleCache(options: { baseUrl?: string; fetchImpl?: typeof fetch } = {}): BundleCache {
-  const baseUrl = options.baseUrl ?? "";
-  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  if (typeof fetchImpl !== "function") throw new Error("demo-web: fetch is required for WASI bundle cache");
-
+function createBrowserBundleCache(): BundleCache {
   const mem = new Map<string, Uint8Array>();
   return {
     async read(path) {
       const key = String(path ?? "");
-      const hit = mem.get(key);
-      if (hit) return hit;
-      const res = await fetchImpl(joinUrl(baseUrl, key), { credentials: "omit" });
-      if (!res.ok) return null;
-      const buf = await res.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      mem.set(key, bytes);
-      return bytes;
+      return mem.get(key) ?? null;
     },
-    async write() {
-      throw new Error("demo-web: bundle cache is read-only");
+    async write(path, data) {
+      const key = String(path ?? "");
+      mem.set(key, data);
     },
   };
 }
 
-function coreUtilsBundle(): InstalledBundle {
-  const manifest = parseBundleManifest({
-    name: "core-utils",
-    version: "0.0.0",
-    assets: [],
-    commands: [
-      { name: "echo", modulePath: "echo.wasm" },
-      { name: "cat", modulePath: "cat.wasm" },
-      { name: "grep", modulePath: "grep.wasm" },
-    ],
-  });
-  return { manifest, rootPath: "bundles/core-utils/0.0.0" };
+async function installCoreUtilsBundle(options: { wasiBundleBaseUrl?: string; cache: BundleCache }): Promise<InstalledBundle> {
+  const registry = createRegistryClient(options.wasiBundleBaseUrl ?? "", { isOfficial: true });
+  return installBundle("core-utils", "0.0.0", { registry, cache: options.cache, requireSignature: true });
 }
 
-export function createBrowserAgent(options: CreateBrowserAgentOptions): {
+export async function createBrowserAgent(options: CreateBrowserAgentOptions): Promise<{
   runtime: AgentRuntime;
   tools: ToolRegistry;
   toolRunner: ToolRunner;
-} {
+}> {
   const tools = new ToolRegistry();
   tools.register(new ListDirTool());
   // Back-compat for older prompts/tests.
@@ -94,8 +68,9 @@ export function createBrowserAgent(options: CreateBrowserAgentOptions): {
   tools.register(new GlobTool());
   tools.register(new GrepTool());
   if (options.enableWasiBash) {
-    const cache = createBrowserBundleCache({ baseUrl: options.wasiBundleBaseUrl });
-    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [coreUtilsBundle()], cache });
+    const cache = createBrowserBundleCache();
+    const bundle = await installCoreUtilsBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
+    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache });
     tools.register(new BashTool({ wasiCommand: command }));
   } else {
     tools.register(new BashTool());

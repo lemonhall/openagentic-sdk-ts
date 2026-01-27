@@ -161,7 +161,7 @@ async function main(): Promise<void> {
     ensureRuntime: async () => {
       await ensureWorkspace();
       if (!workspace) throw new Error("OPFS workspace init failed");
-      const agent = createBrowserAgent({
+      const agent = await createBrowserAgent({
         sessionStore,
         workspace,
         model: modelEl.value.trim() || "gpt-5.2",

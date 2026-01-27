@@ -42,7 +42,7 @@ describe("demo-web WASI Bash", () => {
         ok: true,
         status: 200,
         arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-        text: async () => "",
+        text: async () => bytes.toString("utf8"),
       } as any;
     }) as any;
 
@@ -50,7 +50,7 @@ describe("demo-web WASI Bash", () => {
     const workspace = new MemoryWorkspace();
 
     try {
-      const agent = createBrowserAgent({
+      const agent = await createBrowserAgent({
         sessionStore,
         workspace,
         provider: new FakeProvider() as any,

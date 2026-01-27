@@ -56,7 +56,7 @@ describe("demo-node runtime wiring", () => {
     const workspace = new MemoryWorkspace();
     const provider = new FakeProvider() as any;
 
-    const { runtime } = createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model" });
+    const { runtime } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model" });
 
     const events: any[] = [];
     for await (const e of runtime.runTurn({ userText: "please write a file" })) events.push(e);
@@ -81,7 +81,7 @@ describe("demo-node runtime wiring", () => {
     const workspace = new MemoryWorkspace();
     const provider = new FakeProvider() as any;
 
-    const { tools } = createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model", enableWasiBash: true });
+    const { tools } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model", enableWasiBash: true });
 
     const bash = tools.get("Bash");
     const out = (await bash.run(

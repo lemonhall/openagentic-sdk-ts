@@ -46,7 +46,7 @@ describe("demo-web agent wiring", () => {
     const workspace = new MemoryWorkspace();
     const provider = new FakeProvider() as any;
 
-    const { runtime } = createBrowserAgent({ sessionStore, workspace, provider, model: "fake" });
+    const { runtime } = await createBrowserAgent({ sessionStore, workspace, provider, model: "fake" });
     const events: any[] = [];
     for await (const e of runtime.runTurn({ userText: "go" })) events.push(e);
 
@@ -54,4 +54,3 @@ describe("demo-web agent wiring", () => {
     expect(new TextDecoder().decode(await workspace.readFile("x.txt"))).toBe("y");
   });
 });
-

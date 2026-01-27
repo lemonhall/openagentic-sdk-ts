@@ -86,7 +86,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
       wasiPreopenDir = shadowDir;
     }
 
-    const { runtime } = createDemoRuntime({
+    const { runtime } = await createDemoRuntime({
       sessionStore,
       workspace,
       provider,
@@ -148,7 +148,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
     wasiPreopenDir = shadowDir;
   }
 
-  const { runtime } = createDemoRuntime({
+  const { runtime } = await createDemoRuntime({
     sessionStore,
     workspace,
     provider,

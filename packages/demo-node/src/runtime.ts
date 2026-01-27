@@ -1,6 +1,6 @@
 import type { ModelProvider, SessionStore } from "@openagentic/sdk-core";
 import { AgentRuntime, AskOncePermissionGate, ToolRegistry, ToolRunner } from "@openagentic/sdk-core";
-import { parseBundleManifest } from "@openagentic/bundles";
+import { installBundle } from "@openagentic/bundles";
 import type { Workspace } from "@openagentic/workspace";
 import {
   BashTool,
@@ -19,7 +19,7 @@ import {
   WriteTool,
   WriteFileTool,
 } from "@openagentic/tools";
-import type { BundleCache, InstalledBundle } from "@openagentic/bundles";
+import type { BundleCache, InstalledBundle, RegistryClient } from "@openagentic/bundles";
 import { InProcessWasiRunner } from "@openagentic/wasi-runner-web";
 import { WasmtimeWasiRunner } from "@openagentic/wasi-runner-wasmtime";
 import { readFile } from "node:fs/promises";
@@ -73,26 +73,36 @@ function hasWasmtime(): boolean {
   }
 }
 
-function sampleCoreUtilsBundle(): InstalledBundle {
-  const manifest = parseBundleManifest({
-    name: "core-utils",
-    version: "0.0.0",
-    assets: [],
-    commands: [
-      { name: "echo", modulePath: "echo.wasm" },
-      { name: "cat", modulePath: "cat.wasm" },
-      { name: "grep", modulePath: "grep.wasm" },
-    ],
-  });
-  return { manifest, rootPath: "bundles/core-utils/0.0.0" };
+function sampleRegistry(rootDir: string): RegistryClient {
+  const baseUrl = "https://sample.local";
+  const prefix = `${baseUrl}/`;
+  return {
+    baseUrl,
+    isOfficial: true,
+    async fetchJson(url: string): Promise<unknown> {
+      if (!url.startsWith(prefix)) throw new Error(`demo-node: unexpected registry url: ${url}`);
+      const rel = url.slice(prefix.length);
+      const bytes = await readFile(join(rootDir, rel));
+      return JSON.parse(bytes.toString("utf8")) as unknown;
+    },
+    async fetchBytes(url: string): Promise<Uint8Array> {
+      if (!url.startsWith(prefix)) throw new Error(`demo-node: unexpected registry url: ${url}`);
+      const rel = url.slice(prefix.length);
+      return new Uint8Array(await readFile(join(rootDir, rel)));
+    },
+  };
 }
 
-export function createDemoRuntime(options: CreateDemoRuntimeOptions): {
+async function installSampleCoreUtils(rootDir: string, cache: BundleCache): Promise<InstalledBundle> {
+  return installBundle("core-utils", "0.0.0", { registry: sampleRegistry(rootDir), cache, requireSignature: true });
+}
+
+export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Promise<{
   runtime: AgentRuntime;
   tools: ToolRegistry;
   toolRunner: ToolRunner;
   permissionGate: AskOncePermissionGate;
-} {
+}> {
   const tools = new ToolRegistry();
   tools.register(new ListDirTool());
   // Back-compat for older prompts/tests.
@@ -105,8 +115,10 @@ export function createDemoRuntime(options: CreateDemoRuntimeOptions): {
   tools.register(new GrepTool());
   if (options.enableWasiBash) {
     const root = sampleBundleRoot();
+    const cache = fileCache(root);
+    const bundle = await installSampleCoreUtils(root, cache);
     const runner = hasWasmtime() ? new WasmtimeWasiRunner() : new InProcessWasiRunner();
-    const command = new CommandTool({ runner, bundles: [sampleCoreUtilsBundle()], cache: fileCache(root) });
+    const command = new CommandTool({ runner, bundles: [bundle], cache });
     tools.register(new BashTool({ wasiCommand: command }));
   } else {
     tools.register(new BashTool());
