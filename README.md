@@ -6,6 +6,8 @@ Tool-first agent runtime for **TypeScript**, designed to run with consistent sem
 - WASM/WASI runtimes
 - Servers (with a WASI host such as `wasmtime`)
 
+![OpenAgentic Demo Screenshot](./screenshot.png)
+
 This repo is a TS port of the Python `openagentic-sdk`, but focuses on the smallest set of building blocks needed to run an agent end-to-end:
 
 - event-sourced sessions (JSONL)

@@ -6,6 +6,8 @@
 - WASM/WASI 运行时
 - 服务器（可使用 `wasmtime` 作为 WASI host）
 
+![OpenAgentic Demo 截图](./screenshot.png)
+
 这份仓库是 Python `openagentic-sdk` 的 TypeScript 移植版本，但会更聚焦于“让 Agent 真正跑起来”的最小核心能力：
 
 - 事件溯源的会话（JSONL 事件日志）
@@ -79,4 +81,3 @@ pnpm test
 pnpm build
 pnpm typecheck
 ```
-
