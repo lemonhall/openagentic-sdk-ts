@@ -15,3 +15,5 @@ export { ToolRunner } from "./runtime/tool-runner.js";
 
 export { DEFAULT_LLM_PROTOCOL } from "./llm/index.js";
 export type { ModelCompleteRequest, ModelOutput, ModelProvider, ModelStreamEvent, ModelToolCall } from "./llm/index.js";
+export { toolSchemasForOpenAIResponses } from "./llm/index.js";
+export type { OpenAIResponsesToolSchema } from "./llm/index.js";
