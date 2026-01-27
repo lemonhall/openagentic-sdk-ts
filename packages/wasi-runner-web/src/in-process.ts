@@ -418,6 +418,17 @@ export class InProcessWasiRunner implements WasiRunner {
           fsFiles.delete(oldP);
           return WASI_ERRNO_SUCCESS;
         },
+        path_create_directory(dirfd: number, pathPtr: number, pathLen: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const h = handles.get(dirfd);
+          if (!h || h.kind !== "dir") return WASI_ERRNO_BADF;
+          const raw = readString(pathPtr, pathLen);
+          const normalized = normalizeSandboxPath(raw);
+          if (!normalized) return WASI_ERRNO_INVAL;
+          // v4 note: in-process runner models only files; directory creation is a no-op
+          // unless/until we persist explicit empty directories in snapshots.
+          return WASI_ERRNO_SUCCESS;
+        },
       },
     };
 

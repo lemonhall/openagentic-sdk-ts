@@ -77,9 +77,12 @@ async function main() {
     { name: "grep", wat: join(watRoot, "grep.wat"), wasm: join(bundleRoot, "grep.wasm") },
     { name: "pwd", wat: join(watRoot, "pwd.wat"), wasm: join(bundleRoot, "pwd.wasm") },
     { name: "ls", wat: join(watRoot, "ls.wat"), wasm: join(bundleRoot, "ls.wasm") },
+    { name: "mkdir", wat: join(watRoot, "mkdir.wat"), wasm: join(bundleRoot, "mkdir.wasm") },
     { name: "rm", wat: join(watRoot, "rm.wat"), wasm: join(bundleRoot, "rm.wasm") },
     { name: "mv", wat: join(watRoot, "mv.wat"), wasm: join(bundleRoot, "mv.wasm") },
     { name: "cp", wat: join(watRoot, "cp.wat"), wasm: join(bundleRoot, "cp.wasm") },
+    { name: "head", wat: join(watRoot, "head.wat"), wasm: join(bundleRoot, "head.wasm") },
+    { name: "tail", wat: join(watRoot, "tail.wat"), wasm: join(bundleRoot, "tail.wasm") },
     { name: "wc", wat: join(watRoot, "wc.wat"), wasm: join(bundleRoot, "wc.wasm") },
   ];
 

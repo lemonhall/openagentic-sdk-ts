@@ -198,4 +198,34 @@ describe("CommandTool", () => {
     expect(out.exitCode).toBe(0);
     expect(out.stdout).toBe("3 6\n");
   });
+
+  it("can head/tail from the sample core-utils bundle", async () => {
+    const root = sampleBundleRoot();
+    const manifestRaw = JSON.parse(
+      await readFile(join(root, "bundles", "core-utils", "0.0.0", "manifest.json"), "utf8"),
+    ) as unknown;
+    const manifest = parseBundleManifest(manifestRaw);
+    const bundle: InstalledBundle = { manifest, rootPath: "bundles/core-utils/0.0.0" };
+
+    const tool = new CommandTool({
+      runner: new InProcessWasiRunner(),
+      bundles: [bundle],
+      cache: fileCache(root),
+    });
+
+    const workspace = new MemoryWorkspace();
+    const input = Array.from({ length: 12 }, (_, i) => `l${i + 1}\n`).join("");
+
+    const outHead = (await tool.run(
+      { argv: ["head"], stdin: input },
+      { sessionId: "s", toolUseId: "h", workspace } as any,
+    )) as any;
+    expect(outHead.stdout).toBe(Array.from({ length: 10 }, (_, i) => `l${i + 1}\n`).join(""));
+
+    const outTail = (await tool.run(
+      { argv: ["tail"], stdin: input },
+      { sessionId: "s", toolUseId: "t", workspace } as any,
+    )) as any;
+    expect(outTail.stdout).toBe(Array.from({ length: 10 }, (_, i) => `l${i + 3}\n`).join(""));
+  });
 });

@@ -23,9 +23,19 @@
       "size": 921
     },
     {
+      "path": "head.wasm",
+      "sha256": "b56296daad30ab13ba2a2f8abe10e094ef915d5b318ccb5daea8bcb390bf5ffa",
+      "size": 400
+    },
+    {
       "path": "ls.wasm",
       "sha256": "9a165ced924abbeea7286399dbade7c15567d681e557fd9266c97bcdbcefdd56",
       "size": 400
+    },
+    {
+      "path": "mkdir.wasm",
+      "sha256": "e0ff4031ff33469255a69f1847a746e03c588bbe1dd2c88bade2c32808e72a84",
+      "size": 457
     },
     {
       "path": "mv.wasm",
@@ -41,6 +51,11 @@
       "path": "rm.wasm",
       "sha256": "c0cf8d56b38ab49f32abda8860c44a2816b43204c17297311c31598b93ff9f02",
       "size": 447
+    },
+    {
+      "path": "tail.wasm",
+      "sha256": "656d5fd1f555b301fc043787b087b3dd82a5cc7313f8f58bfdf8a4de51ec5c9f",
+      "size": 448
     },
     {
       "path": "wc.wasm",
@@ -66,8 +81,16 @@
       "modulePath": "grep.wasm"
     },
     {
+      "name": "head",
+      "modulePath": "head.wasm"
+    },
+    {
       "name": "ls",
       "modulePath": "ls.wasm"
+    },
+    {
+      "name": "mkdir",
+      "modulePath": "mkdir.wasm"
     },
     {
       "name": "mv",
@@ -82,6 +105,10 @@
       "modulePath": "rm.wasm"
     },
     {
+      "name": "tail",
+      "modulePath": "tail.wasm"
+    },
+    {
       "name": "wc",
       "modulePath": "wc.wasm"
     }
@@ -89,6 +116,6 @@
   "signature": {
     "keyId": "dev-2026-01",
     "alg": "ed25519",
-    "sigBase64": "pnuIUX+CP1rqpk+REJV9tBvWAEo58BVlc2s0wZL7QBUhu6txqPTUpSoszw09bxSkGEjl3OQY7w3MU4Ip+V5sDQ=="
+    "sigBase64": "e0Fw+KvPdk/XMAr8QDR9aZqo4oi9YE3WRi167+RQOogN6AFiRHOxhXzto4SS05HJ+c66hQko0oMpJrpS5wHYCA=="
   }
 }
