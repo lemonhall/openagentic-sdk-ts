@@ -30,7 +30,7 @@ export function createRegistryClient(baseUrl: string, options: { fetcher?: Fetch
   const fetcher: Fetcher =
     options.fetcher ??
     (async (url) => {
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: "omit" });
       return {
         status: res.status,
         async arrayBuffer() {
@@ -57,4 +57,3 @@ export function createRegistryClient(baseUrl: string, options: { fetcher?: Fetch
     },
   };
 }
-

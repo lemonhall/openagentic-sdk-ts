@@ -22,6 +22,7 @@ Suggested execution order:
 10. `v1-feature-09-wasi-preview1-fs-args-env.md` — WASI argv/env + sandboxed preopen root + minimal FS syscalls
 11. `v1-feature-10-command-tool-workspace-fs.md` — Mount workspace as WASI FS for `Command(argv)` and commit back
 12. `v1-feature-11-tool-runner-context-injection.md` — Inject host context (e.g. workspace) into tool execution
+13. `v1-feature-12-registry-fetch-omit-credentials.md` — Registry downloads default to `credentials: "omit"`
 
 ## Non-v1 / future plans (tracked in design doc)
 
