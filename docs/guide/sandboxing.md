@@ -25,6 +25,47 @@ This repo supports (or plans) two different server-side **execution engines**:
 2. **Native engine (Linux-only, host tools)**  
    Runs host-native commands (e.g. `bash`, `grep`, `git`) inside a sandboxed shadow workspace. This trades away portability and browser parity for operational convenience.
 
+## Backend matrix (server)
+
+| Platform | Backend | FS isolation | Network isolation | Resource limits | Install | Recommended use cases |
+|---|---|---|---|---|---|---|
+| Linux | `bwrap` | yes | optional | partial | med | production-grade “outer sandbox” (WASI) and Bubblewrap-native engine |
+| Linux | `nsjail` | partial | optional | partial | high | best-effort hardening when Bubblewrap isn’t available/desired (operator-reviewed policies recommended) |
+| macOS | `sandbox-exec` | partial | optional | no | low | best-effort hardening for native execution |
+| Windows | `jobobject` | no | no | partial | low | timeout/process-tree containment (no FS namespace isolation) |
+| any | `none` | no | no | no | low | debugging only (not recommended for untrusted prompts) |
+
+## Selecting a backend (Node/server)
+
+Use `@openagentic/sdk-node` to select a backend by name and construct:
+
+- a `ProcessSandbox` (wraps the WASI runner process), and/or
+- a `NativeRunner` (wraps host-native execution)
+
+Example (WASI engine + outer sandbox):
+
+```ts
+import { parseSandboxConfig, getSandboxBackend } from "@openagentic/sdk-node";
+import { WasmtimeWasiRunner } from "@openagentic/wasi-runner-wasmtime";
+
+const cfg = parseSandboxConfig({ backend: "bwrap", options: { network: "deny" } });
+const backend = getSandboxBackend(cfg.backend);
+const processSandbox = backend.createProcessSandbox({ config: cfg });
+
+const runner = new WasmtimeWasiRunner({ processSandbox });
+```
+
+Example (native engine):
+
+```ts
+import { parseSandboxConfig, getSandboxBackend } from "@openagentic/sdk-node";
+
+const shadowDir = "/path/to/shadow";
+const cfg = parseSandboxConfig({ backend: "bwrap", options: { network: "deny" } });
+const backend = getSandboxBackend(cfg.backend);
+const nativeRunner = backend.createNativeRunner({ config: cfg, shadowDir });
+```
+
 ### Server (optional hardening)
 
 On the server you can add an **outer sandbox** around the WASI runner process (“sandbox stacking”):

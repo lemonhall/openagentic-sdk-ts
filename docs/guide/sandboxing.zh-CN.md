@@ -28,6 +28,47 @@ OpenAgentic SDK TS 的目标是同时做到两件事：
 2) **Native 引擎（仅 Linux、使用宿主机工具）**  
    在 Bubblewrap 沙箱中直接运行宿主机原生命令（例如 `bash` / `grep` / `git`）。它牺牲可移植性与浏览器对齐，换取部署便利（不用分发 bundles）。
 
+## 后端矩阵（服务器侧）
+
+| 平台 | 后端 | FS 隔离 | 网络隔离 | 资源限制 | 安装复杂度 | 推荐场景 |
+|---|---|---|---|---|---|---|
+| Linux | `bwrap` | yes | 可选 | 部分 | 中 | 生产级外层沙箱（WASI）+ Bubblewrap-native 引擎 |
+| Linux | `nsjail` | 部分 | 可选 | 部分 | 高 | Bubblewrap 不可用/不想用时的 best-effort 加固（建议运维审阅策略/参数） |
+| macOS | `sandbox-exec` | 部分 | 可选 | no | 低 | native 执行的 best-effort 加固 |
+| Windows | `jobobject` | no | no | 部分 | 低 | 超时/进程树收敛（不提供 FS 命名空间隔离） |
+| 任意 | `none` | no | no | no | 低 | 仅用于调试（不建议对不可信 prompt 使用） |
+
+## 后端选择方式（Node/服务器）
+
+通过 `@openagentic/sdk-node` 可以按名字选择后端，并构造：
+
+- `ProcessSandbox`（包住 WASI runner 进程），以及/或者
+- `NativeRunner`（包住宿主机原生命令执行）
+
+示例（WASI 引擎 + 外层沙箱）：
+
+```ts
+import { parseSandboxConfig, getSandboxBackend } from "@openagentic/sdk-node";
+import { WasmtimeWasiRunner } from "@openagentic/wasi-runner-wasmtime";
+
+const cfg = parseSandboxConfig({ backend: "bwrap", options: { network: "deny" } });
+const backend = getSandboxBackend(cfg.backend);
+const processSandbox = backend.createProcessSandbox({ config: cfg });
+
+const runner = new WasmtimeWasiRunner({ processSandbox });
+```
+
+示例（native 引擎）：
+
+```ts
+import { parseSandboxConfig, getSandboxBackend } from "@openagentic/sdk-node";
+
+const shadowDir = "/path/to/shadow";
+const cfg = parseSandboxConfig({ backend: "bwrap", options: { network: "deny" } });
+const backend = getSandboxBackend(cfg.backend);
+const nativeRunner = backend.createNativeRunner({ config: cfg, shadowDir });
+```
+
 ### 服务器侧（可选加固）
 
 在服务器上可以再加一层 **外层沙箱**，把 WASI runner 进程包一层（“沙箱叠加 / sandbox stacking”）：
