@@ -117,8 +117,44 @@ async function main() {
   const manifestJson = JSON.stringify(manifest, null, 2) + "\n";
   await writeFile(join(bundleRoot, "manifest.json"), manifestJson, "utf8");
   await writeFile(join(webBundleRoot, "manifest.json"), manifestJson, "utf8");
+
+  // --- lang-python (placeholder runtime; v4 wiring) ---
+  {
+    const pyBundleRoot = join(sampleRoot, "bundles", "lang-python", version);
+    const pyWebBundleRoot = join(webPublicRoot, "bundles", "lang-python", version);
+    const pyBytes = await compileWat(join(watRoot, "python.wat"));
+    await writeBytes(join(pyBundleRoot, "python.wasm"), pyBytes);
+    await writeBytes(join(pyWebBundleRoot, "python.wasm"), pyBytes);
+
+    const pyUnsigned = {
+      name: "lang-python",
+      version,
+      assets: [
+        {
+          path: "python.wasm",
+          sha256: await sha256Hex(pyBytes),
+          size: pyBytes.byteLength,
+        },
+      ],
+      commands: [{ name: "python", modulePath: "python.wasm" }],
+    };
+
+    const pyManifest = {
+      ...pyUnsigned,
+      signature: {
+        keyId: "dev-2026-01",
+        alg: "ed25519",
+        sigBase64: await signManifestPayloadEd25519(pyUnsigned),
+      },
+    };
+
+    const pyManifestJson = JSON.stringify(pyManifest, null, 2) + "\n";
+    await writeFile(join(pyBundleRoot, "manifest.json"), pyManifestJson, "utf8");
+    await writeFile(join(pyWebBundleRoot, "manifest.json"), pyManifestJson, "utf8");
+  }
+
   // eslint-disable-next-line no-console
-  console.log(`Wrote ${commands.length} wasm files + manifest to ${bundleRoot}`);
+  console.log(`Wrote sample bundles to ${sampleRoot}/bundles (and demo-web/public/bundles)`);
 }
 
 await main();

@@ -9,6 +9,7 @@ import {
   GlobTool,
   GrepTool,
   ListDirTool,
+  PythonTool,
   ReadTool,
   ReadFileTool,
   SkillTool,
@@ -97,6 +98,10 @@ async function installSampleCoreUtils(rootDir: string, cache: BundleCache): Prom
   return installBundle("core-utils", "0.0.0", { registry: sampleRegistry(rootDir), cache, requireSignature: true });
 }
 
+async function installSampleLangPython(rootDir: string, cache: BundleCache): Promise<InstalledBundle> {
+  return installBundle("lang-python", "0.0.0", { registry: sampleRegistry(rootDir), cache, requireSignature: true });
+}
+
 export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Promise<{
   runtime: AgentRuntime;
   tools: ToolRegistry;
@@ -118,10 +123,12 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
   if (enableWasiBash) {
     const root = sampleBundleRoot();
     const cache = fileCache(root);
-    const bundle = await installSampleCoreUtils(root, cache);
+    const coreUtils = await installSampleCoreUtils(root, cache);
+    const langPython = await installSampleLangPython(root, cache);
     const runner = hasWasmtime() ? new WasmtimeWasiRunner() : new InProcessWasiRunner();
-    const command = new CommandTool({ runner, bundles: [bundle], cache });
+    const command = new CommandTool({ runner, bundles: [coreUtils, langPython], cache });
     tools.register(new BashTool({ wasiCommand: command }));
+    tools.register(new PythonTool({ command }));
   } else {
     tools.register(new BashTool());
   }

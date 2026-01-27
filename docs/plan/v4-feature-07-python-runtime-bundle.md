@@ -12,6 +12,8 @@ This plan is based on `docs/plan/v3-feature-06-python-runtime-bundle.md`, upgrad
 - Phase A: MicroPython-in-WASI runtime bundle (official, signed).
 - Phase B (tracked): CPython-in-WASI + richer stdlib packaging.
 
+> **Note (repo constraint):** In offline/sandboxed environments, shipping a full MicroPython/CPython WASI runtime artifact may be infeasible. v4 can still land the end-to-end plumbing (bundle install + tool wrapper + demo wiring) using a minimal placeholder WASI module, and swap in a real runtime bundle once an official artifact source is available.
+
 ## Tasks
 
 ### Task 1: Add `lang-python` sample bundle + tests
@@ -36,4 +38,3 @@ This plan is based on `docs/plan/v3-feature-06-python-runtime-bundle.md`, upgrad
 - Docs: `docs/guide/tools/python.md`
 
 **Commit:** `feat(tools): add Python tool (WASI runtime bundle)`
-

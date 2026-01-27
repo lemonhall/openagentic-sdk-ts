@@ -1,0 +1,22 @@
+{
+  "name": "lang-python",
+  "version": "0.0.0",
+  "assets": [
+    {
+      "path": "python.wasm",
+      "sha256": "787d9c6bc2f4d7f9fcafd7c6ca2cb4bfc215139cbb2e92e01dfb48f889922a72",
+      "size": 517
+    }
+  ],
+  "commands": [
+    {
+      "name": "python",
+      "modulePath": "python.wasm"
+    }
+  ],
+  "signature": {
+    "keyId": "dev-2026-01",
+    "alg": "ed25519",
+    "sigBase64": "1o+pcrAcWPLK2lUaL2dsIojb9ld2/ZWjSGLAVo9AIhRwVHPAEvIjbkqs9mgihxjLsQ0+kmcXdKtA/dHi4bmbBQ=="
+  }
+}

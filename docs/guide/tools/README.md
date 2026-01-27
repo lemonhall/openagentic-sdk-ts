@@ -23,6 +23,12 @@ See: `bash.md`
 
 - `Bash` — a restricted shell over the shadow workspace (pipes + redirects, but **not** host bash)
 
+## Language Tools
+
+See: `python.md`
+
+- `Python` — run Python code in a WASI runtime bundle
+
 ## Web Tools
 
 See: `web.md`

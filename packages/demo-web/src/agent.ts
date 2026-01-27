@@ -11,6 +11,7 @@ import {
   GlobTool,
   GrepTool,
   ListDirTool,
+  PythonTool,
   ReadTool,
   ReadFileTool,
   SkillTool,
@@ -54,6 +55,11 @@ async function installCoreUtilsBundle(options: { wasiBundleBaseUrl?: string; cac
   return installBundle("core-utils", "0.0.0", { registry, cache: options.cache, requireSignature: true });
 }
 
+async function installLangPythonBundle(options: { wasiBundleBaseUrl?: string; cache: BundleCache }): Promise<InstalledBundle> {
+  const registry = createRegistryClient(options.wasiBundleBaseUrl ?? "", { isOfficial: true });
+  return installBundle("lang-python", "0.0.0", { registry, cache: options.cache, requireSignature: true });
+}
+
 let sharedWasiRunner: WasiRunner | null = null;
 function getBrowserWasiRunner(): WasiRunner {
   if (sharedWasiRunner) return sharedWasiRunner;
@@ -92,9 +98,11 @@ export async function createBrowserAgent(options: CreateBrowserAgentOptions): Pr
   tools.register(new GrepTool());
   if (options.enableWasiBash) {
     const cache = createBrowserBundleCache();
-    const bundle = await installCoreUtilsBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
-    const command = new CommandTool({ runner: getBrowserWasiRunner(), bundles: [bundle], cache });
+    const coreUtils = await installCoreUtilsBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
+    const langPython = await installLangPythonBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
+    const command = new CommandTool({ runner: getBrowserWasiRunner(), bundles: [coreUtils, langPython], cache });
     tools.register(new BashTool({ wasiCommand: command }));
+    tools.register(new PythonTool({ command }));
   } else {
     tools.register(new BashTool());
   }
