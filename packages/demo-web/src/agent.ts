@@ -20,7 +20,8 @@ import {
   WriteTool,
   WriteFileTool,
 } from "@openagentic/tools";
-import { InProcessWasiRunner } from "@openagentic/wasi-runner-web";
+import { InProcessWasiRunner, WorkerWasiRunner } from "@openagentic/wasi-runner-web";
+import type { WasiRunner } from "@openagentic/wasi-runner";
 
 export type CreateBrowserAgentOptions = {
   sessionStore: SessionStore;
@@ -52,6 +53,18 @@ async function installCoreUtilsBundle(options: { wasiBundleBaseUrl?: string; cac
   return installBundle("core-utils", "0.0.0", { registry, cache: options.cache, requireSignature: true });
 }
 
+let sharedWasiRunner: WasiRunner | null = null;
+function getBrowserWasiRunner(): WasiRunner {
+  if (sharedWasiRunner) return sharedWasiRunner;
+  if (typeof Worker !== "undefined") {
+    const w = new Worker(new URL("./wasi-worker.ts", import.meta.url), { type: "module" });
+    sharedWasiRunner = new WorkerWasiRunner(w as any);
+    return sharedWasiRunner;
+  }
+  sharedWasiRunner = new InProcessWasiRunner();
+  return sharedWasiRunner;
+}
+
 export async function createBrowserAgent(options: CreateBrowserAgentOptions): Promise<{
   runtime: AgentRuntime;
   tools: ToolRegistry;
@@ -70,7 +83,7 @@ export async function createBrowserAgent(options: CreateBrowserAgentOptions): Pr
   if (options.enableWasiBash) {
     const cache = createBrowserBundleCache();
     const bundle = await installCoreUtilsBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
-    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache });
+    const command = new CommandTool({ runner: getBrowserWasiRunner(), bundles: [bundle], cache });
     tools.register(new BashTool({ wasiCommand: command }));
   } else {
     tools.register(new BashTool());
