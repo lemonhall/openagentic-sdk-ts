@@ -34,6 +34,8 @@ export class InProcessWasiRunner implements WasiRunner {
     let truncatedStderr = false;
 
     let memory: WebAssembly.Memory | undefined;
+    const stdin = input.stdin ?? new Uint8Array();
+    let stdinOffset = 0;
 
     const push = (fd: number, bytes: Uint8Array) => {
       if (fd === 1) {
@@ -63,6 +65,27 @@ export class InProcessWasiRunner implements WasiRunner {
       wasi_snapshot_preview1: {
         proc_exit(code: number) {
           throw new WasiExit(code >>> 0);
+        },
+        fd_read(fd: number, iovsPtr: number, iovsLen: number, nreadPtr: number) {
+          if (!memory) return 8; // badf
+          if (fd !== 0) return 8;
+          const mem = new DataView(memory.buffer);
+          let readTotal = 0;
+          for (let i = 0; i < iovsLen; i++) {
+            const base = iovsPtr + i * 8;
+            const ptr = mem.getUint32(base, true);
+            const len = mem.getUint32(base + 4, true);
+            const available = stdin.byteLength - stdinOffset;
+            const n = Math.max(0, Math.min(len, available));
+            if (n > 0) {
+              new Uint8Array(memory.buffer, ptr, n).set(stdin.subarray(stdinOffset, stdinOffset + n));
+              stdinOffset += n;
+              readTotal += n;
+            }
+            if (available <= 0) break;
+          }
+          mem.setUint32(nreadPtr, readTotal, true);
+          return 0;
         },
         fd_write(fd: number, iovsPtr: number, iovsLen: number, nwrittenPtr: number) {
           if (!memory) return 8; // badf

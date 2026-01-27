@@ -44,6 +44,9 @@ importers:
       '@openagentic/wasi-runner':
         specifier: workspace:*
         version: link:../wasi-runner
+      '@openagentic/workspace':
+        specifier: workspace:*
+        version: link:../workspace
     devDependencies:
       '@openagentic/wasi-runner-web':
         specifier: workspace:*

@@ -6,12 +6,21 @@
       "path": "echo.wasm",
       "sha256": "70d1fe3e00bab6818a5832f5353827dc46f0839a21a3fa0d782a768183a70ecf",
       "size": 214
+    },
+    {
+      "path": "cat.wasm",
+      "sha256": "8a9257e543e1631a537310c0b755a8c344d084b1501060321349934d271ef97d",
+      "size": 287
     }
   ],
   "commands": [
     {
       "name": "echo",
       "modulePath": "echo.wasm"
+    },
+    {
+      "name": "cat",
+      "modulePath": "cat.wasm"
     }
   ]
 }

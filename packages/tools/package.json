@@ -6,7 +6,8 @@
   "dependencies": {
     "@openagentic/bundles": "workspace:*",
     "@openagentic/sdk-core": "workspace:*",
-    "@openagentic/wasi-runner": "workspace:*"
+    "@openagentic/wasi-runner": "workspace:*",
+    "@openagentic/workspace": "workspace:*"
   },
   "exports": {
     ".": {

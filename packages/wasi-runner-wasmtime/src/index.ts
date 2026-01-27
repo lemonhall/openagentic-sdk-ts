@@ -58,8 +58,12 @@ export class WasmtimeWasiRunner implements WasiRunner {
     let truncatedStderr = false;
 
     const exitCode = await new Promise<number>((resolve, reject) => {
-      const cp = spawn(this.wasmtimePath, args, { stdio: ["ignore", "pipe", "pipe"] });
+      const cp = spawn(this.wasmtimePath, args, { stdio: ["pipe", "pipe", "pipe"] });
       cp.on("error", reject);
+      if (input.stdin && input.stdin.byteLength > 0) {
+        cp.stdin.write(Buffer.from(input.stdin));
+      }
+      cp.stdin.end();
       cp.stdout.on("data", (buf: Buffer) => {
         if (truncatedStdout) return;
         const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -90,4 +94,3 @@ export class WasmtimeWasiRunner implements WasiRunner {
     };
   }
 }
-
