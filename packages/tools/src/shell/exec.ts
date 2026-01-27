@@ -88,7 +88,7 @@ export async function execSequence(
       try {
         const out = (await command.run(
           { argv, cwd, env, stdin, limits: { maxStdoutBytes: 1024 * 1024, maxStderrBytes: 1024 * 1024 } },
-          { sessionId: "shell", toolUseId: `shell:${i}` },
+          { sessionId: "shell", toolUseId: `shell:${i}`, workspace } as any,
         )) as any;
         lastExit = Number(out.exitCode ?? 0);
         lastStdout = String(out.stdout ?? "");

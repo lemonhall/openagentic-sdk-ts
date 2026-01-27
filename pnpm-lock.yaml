@@ -60,6 +60,9 @@ importers:
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.19.7)
+      wabt:
+        specifier: ^1.0.37
+        version: 1.0.39
 
   packages/wasi-runner:
     devDependencies:

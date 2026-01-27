@@ -27,6 +27,7 @@
     "@types/node": "^22.13.4",
     "@openagentic/wasi-runner-web": "workspace:*",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "wabt": "^1.0.37"
   }
 }
