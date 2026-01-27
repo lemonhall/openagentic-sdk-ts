@@ -10,6 +10,7 @@ import {
 
 import { createBrowserAgent } from "./agent.js";
 import { createController } from "./controller.js";
+import { clearDirectoryHandle } from "./fs-utils.js";
 import { reduceChatState } from "./state.js";
 
 import "./styles.css";
@@ -52,6 +53,7 @@ async function main(): Promise<void> {
           <button id="chooseDir" class="oaBtn">Choose Directory</button>
           <button id="importDir" class="oaBtn">Import → OPFS</button>
           <button id="commitDir" class="oaBtn">Commit → Real</button>
+          <button id="resetOpfs" class="oaBtn">Reset OPFS</button>
         </div>
         <div id="status" class="oaStatus"></div>
       </section>
@@ -83,6 +85,7 @@ async function main(): Promise<void> {
   const chooseDirEl = document.querySelector<HTMLButtonElement>("#chooseDir")!;
   const importDirEl = document.querySelector<HTMLButtonElement>("#importDir")!;
   const commitDirEl = document.querySelector<HTMLButtonElement>("#commitDir")!;
+  const resetOpfsEl = document.querySelector<HTMLButtonElement>("#resetOpfs")!;
 
   let state = { messages: [] as Array<{ role: "user" | "assistant"; text: string; streaming?: boolean }> };
   let realDirHandle: FileSystemDirectoryHandle | null = null;
@@ -92,6 +95,7 @@ async function main(): Promise<void> {
   let workspace: OpfsWorkspace | null = null;
   let baseSnapshot: Snapshot | null = null;
   let workspaceInit: Promise<void> | null = null;
+  let opfsDemoDir: any | null = null;
 
   function setStatus(text: string): void {
     statusEl.textContent = text;
@@ -126,9 +130,10 @@ async function main(): Promise<void> {
     if (!workspaceInit) {
       workspaceInit = (async () => {
         const opfsRoot = await getOpfsRootDirectory();
-        const demoDir = await (opfsRoot as any).getDirectoryHandle("openagentic-demo-web", { create: true });
-        workspace = new OpfsWorkspace(demoDir as any);
-        baseSnapshot = await snapshotWorkspace(workspace);
+        opfsDemoDir = await (opfsRoot as any).getDirectoryHandle("openagentic-demo-web", { create: true });
+        workspace = new OpfsWorkspace(opfsDemoDir as any);
+        // Important: OPFS persists across reloads; avoid full snapshot/hashing on startup.
+        baseSnapshot = null;
       })();
     }
     await workspaceInit;
@@ -183,9 +188,14 @@ async function main(): Promise<void> {
         setStatus("choose a directory first");
         return;
       }
-      setStatus("importing...");
+      setStatus("importing (clearing OPFS)...");
       await ensureWorkspace();
-      if (!workspace) throw new Error("OPFS workspace init failed");
+      if (!workspace || !opfsDemoDir) throw new Error("OPFS workspace init failed");
+
+      // Treat import as resetting the shadow workspace to match the selected directory.
+      await clearDirectoryHandle(opfsDemoDir as any);
+
+      setStatus("importing...");
       await importFromDirectoryHandle(realDirHandle as any, workspace, {
         filter: (path, kind) => {
           if (path.startsWith(".openagentic/")) return false;
@@ -193,6 +203,7 @@ async function main(): Promise<void> {
           return true;
         },
       });
+      setStatus("snapshotting...");
       baseSnapshot = await snapshotWorkspace(workspace);
       await refreshFiles();
       setStatus("imported to OPFS");
@@ -209,7 +220,7 @@ async function main(): Promise<void> {
       }
       setStatus("computing changes...");
       await ensureWorkspace();
-      if (!workspace || !baseSnapshot) throw new Error("OPFS workspace is not initialized");
+      if (!workspace || !baseSnapshot) throw new Error("OPFS workspace is not initialized (import first)");
       const { changeSet } = await commitToDirectoryHandle(realDirHandle as any, workspace, baseSnapshot, {
         approve: async (cs) => {
           const msg = `Commit changes?\\n\\n+${cs.adds.length} ~${cs.modifies.length} -${cs.deletes.length}`;
@@ -219,6 +230,20 @@ async function main(): Promise<void> {
       baseSnapshot = await snapshotWorkspace(workspace);
       await refreshFiles();
       setStatus(`committed: +${changeSet.adds.length} ~${changeSet.modifies.length} -${changeSet.deletes.length}`);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    }
+  });
+
+  resetOpfsEl.addEventListener("click", async () => {
+    try {
+      setStatus("clearing OPFS...");
+      await ensureWorkspace();
+      if (!opfsDemoDir || !workspace) throw new Error("OPFS workspace init failed");
+      await clearDirectoryHandle(opfsDemoDir as any);
+      baseSnapshot = null;
+      await refreshFiles();
+      setStatus("OPFS cleared");
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e));
     }
