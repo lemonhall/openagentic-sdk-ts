@@ -30,7 +30,15 @@ export interface ProcessSandbox {
 
 function redactArgs(args: string[], secrets: string[]): string[] {
   if (secrets.length === 0) return args;
-  return args.map((a) => (secrets.includes(a) ? "<redacted>" : a));
+  const uniq = Array.from(new Set(secrets.filter(Boolean))).sort((a, b) => b.length - a.length);
+  return args.map((arg) => {
+    let out = arg;
+    for (const secret of uniq) {
+      if (!secret) continue;
+      if (out.includes(secret)) out = out.split(secret).join("<redacted>");
+    }
+    return out;
+  });
 }
 
 export function applyProcessSandbox(options: {
@@ -61,4 +69,3 @@ export function applyProcessSandbox(options: {
 
   return { spawn, audit };
 }
-

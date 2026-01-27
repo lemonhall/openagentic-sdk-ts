@@ -45,6 +45,10 @@ When the runtime’s `ToolContext` includes an `emitEvent(ev)` hook, network act
 
 For WASI modules, the web runner returns per-call audits via `WasiExecResult.netFetchAudits`, and the `Command` tool can forward those into `net.fetch` events.
 
+### Sandbox auditing (server)
+
+When `wasmtime` is wrapped by an outer sandbox (e.g. Bubblewrap), `WasmtimeWasiRunner.execModule()` returns `WasiExecResult.sandboxAudits` describing the wrapper and the wrapped invocation (with host-path redaction).
+
 ## API keys
 
 - Node demos read the OpenAI key from `OPENAI_API_KEY`.

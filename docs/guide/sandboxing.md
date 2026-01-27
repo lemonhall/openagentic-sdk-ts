@@ -28,6 +28,25 @@ This is useful when you want stronger isolation than “only preopen the shadow 
 
 Bubblewrap is a production-grade Linux sandbox based on namespaces (and commonly used by Flatpak). In this project it is treated as an *optional wrapper* around the server runner process.
 
+## How it works (in this repo)
+
+On the server, the WASI runner is a process spawn (`wasmtime ...`). v5 adds an optional “process sandbox adapter” that can rewrite that spawn into:
+
+- `bwrap ... wasmtime ...` (Bubblewrap outer sandbox), or
+- another sandbox technology in the future.
+
+Key ideas:
+
+- The runner still preopens (mounts) only the **shadow workspace** directory for WASI. This preserves “same semantics” vs browser.
+- The outer sandbox constrains the **runner process itself** (filesystem view, network namespace, etc.).
+- To keep the invocation correct, the wrapper must:
+  1) Bind-mount host directories into stable guest paths (e.g. shadow dir → `/workspace`, runner temp → `/__runner__`).
+  2) Rewrite any host paths in the inner `wasmtime` argv into their guest equivalents.
+
+Auditing:
+
+- When an outer sandbox wrapper is used, `WasmtimeWasiRunner.execModule()` returns `WasiExecResult.sandboxAudits` describing which wrapper ran and what it wrapped (with host-path redaction).
+
 ### What it provides
 
 - Restricts filesystem view via bind mounts (only selected directories are visible).
@@ -52,3 +71,53 @@ Environment variables:
 
 If `bwrap` is unavailable or the OS is not Linux, the demo will warn and continue unless it is required.
 
+## Ubuntu 24.04 prerequisites
+
+Install Bubblewrap + Wasmtime:
+
+```bash
+sudo apt update
+sudo apt install -y bubblewrap wasmtime
+```
+
+Verify binaries:
+
+```bash
+bwrap --version
+wasmtime --version
+```
+
+Bubblewrap requires unprivileged user namespaces. On Ubuntu, this is usually enabled by default, but you can check:
+
+```bash
+cat /proc/sys/kernel/unprivileged_userns_clone
+```
+
+`1` means enabled. If it is `0`, Bubblewrap will not work for unprivileged users.
+
+## Manual verification (no LLM required)
+
+Run a minimal “bwrap can execute wasmtime” smoke command:
+
+```bash
+bwrap --die-with-parent --new-session \
+  --proc /proc --dev /dev --tmpfs /tmp \
+  --ro-bind /usr /usr --ro-bind /bin /bin --ro-bind /lib /lib --ro-bind /lib64 /lib64 --ro-bind /etc /etc \
+  wasmtime --version
+```
+
+Then run the gated integration test (it will skip if `bwrap`/`wasmtime` are missing):
+
+```bash
+pnpm -C packages/wasi-runner-wasmtime test -- src/__tests__/bubblewrap.integration.test.ts
+```
+
+## Manual verification (demo-node)
+
+If you also want to run the agent demo under Bubblewrap:
+
+```bash
+OPENAGENTIC_PROCESS_SANDBOX=bwrap \
+OPENAI_API_KEY=... \
+pnpm -C packages/demo-node start -- --project . --once "Use Bash to run: echo hi"
+```

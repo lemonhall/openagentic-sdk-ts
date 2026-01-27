@@ -7,7 +7,7 @@ describe("applyProcessSandbox", () => {
   it("uses wrapper output and emits an audit record", () => {
     const command: ProcessSandboxCommand = {
       cmd: "wasmtime",
-      args: ["run", "module.wasm", "--", "echo", "hi"],
+      args: ["run", "/host/shadow/module.wasm", "--", "echo", "hi"],
       env: { PATH: "/bin" },
       mounts: [
         { kind: "dir", label: "shadow-workspace", hostPath: "/host/shadow", guestPath: "/workspace", mode: "rw" },
@@ -29,6 +29,7 @@ describe("applyProcessSandbox", () => {
     expect(out.audit.wrapperName).toBe("test-sandbox");
     expect(out.audit.mounts?.[0]).toEqual({ label: "shadow-workspace", guestPath: "/workspace", mode: "rw" });
     expect(out.audit.wrappedArgs).not.toContain("/host/shadow");
+    expect(out.audit.wrappedArgs.join(" ")).not.toContain("/host/shadow");
   });
 
   it("does not emit an audit when no sandbox is installed", () => {
@@ -38,4 +39,3 @@ describe("applyProcessSandbox", () => {
     expect(out.audit).toBeUndefined();
   });
 });
-
