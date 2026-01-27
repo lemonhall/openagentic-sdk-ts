@@ -18,6 +18,12 @@ v3 is about closing the gap between the original “same-semantics WASI runner�
 
 - v3 index: `v3-index.md`
 
+## v4 plans (finish “same-semantics WASI”)
+
+v4 closes the remaining “初心” gaps: worker/OPFS WASI in browser, mounted shadow dir in Node, official signature verification, WASI netfetch wiring, a usable `core-utils` bundle baseline, and Python runtime tooling.
+
+- v4 index: `v4-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:
