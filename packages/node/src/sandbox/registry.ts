@@ -4,6 +4,7 @@ import type { ProcessSandbox } from "@openagentic/wasi-runner-wasmtime";
 import { createBubblewrapProcessSandbox } from "@openagentic/wasi-runner-wasmtime";
 
 import type { SandboxBackendConfig, SandboxBackendName } from "./config.js";
+import { createNsjailProcessSandbox, NsjailNativeRunner } from "./linux-nsjail.js";
 
 export type SandboxBackend = {
   name: SandboxBackendName;
@@ -43,11 +44,22 @@ const backend: Record<SandboxBackendName, SandboxBackend> = {
   },
   nsjail: {
     name: "nsjail",
-    createProcessSandbox() {
-      throw new Error("sandbox: nsjail backend not implemented yet");
+    createProcessSandbox({ config }) {
+      if (config.backend !== "nsjail") throw new Error("sandbox: backend mismatch (expected nsjail)");
+      return createNsjailProcessSandbox({
+        nsjailPath: config.options.nsjailPath,
+        network: config.options.network,
+        ...(config.options.roBinds.length ? { roBinds: config.options.roBinds } : {}),
+      });
     },
-    createNativeRunner() {
-      throw new Error("sandbox: nsjail backend not implemented yet");
+    createNativeRunner({ config, shadowDir }) {
+      if (config.backend !== "nsjail") throw new Error("sandbox: backend mismatch (expected nsjail)");
+      return new NsjailNativeRunner({
+        nsjailPath: config.options.nsjailPath,
+        network: config.options.network,
+        ...(config.options.roBinds.length ? { roBinds: config.options.roBinds } : {}),
+        shadowDir,
+      });
     },
   },
   "sandbox-exec": {

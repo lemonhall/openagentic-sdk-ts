@@ -78,20 +78,54 @@ sequenceDiagram
   A-->>U: assistant message
 ```
 
-## Alternative design (not implemented): Bubblewrap-native engine
+## Native engine (implemented in v6)
 
 If you want Bubblewrap and WASI to be “peers” in the sense of **choosing one engine or the other**, that implies a second execution engine on the server:
 
 - `WASI engine`: runs signed WASI tool bundles (portable; matches browser).
-- `Native engine`: runs host-native binaries under Bubblewrap (Linux-only; does not match browser semantics unless you also ship a Linux userland bundle strategy).
+- `Native engine`: runs host-native binaries under a sandbox (Linux-only; does not match browser semantics unless you also ship a Linux userland bundle strategy).
 
-This repo does **not** implement the native engine today. v5 only adds the *outer sandbox adapter* so deployments can harden the existing WASI path.
+This repo implements the native engine in v6 (see the diagram below). v5 focuses on the *outer sandbox adapter* so deployments can harden the WASI path (“sandbox stacking”).
 
 ## Native engine diagram (v6)
 
 Rendered diagram for the **server native engine + Bubblewrap** flow:
 
 ![Native engine (Bubblewrap) sequence diagram](native_sandbox_sequenceDiagram_v6.png)
+
+## nsjail (Linux-only, optional backend)
+
+`nsjail` is another Linux sandbox runner that can be used as an alternative backend in some deployments.
+
+Important caveats:
+
+- This backend is **Linux-only** and depends on kernel namespace configuration.
+- Compared to Bubblewrap, the default policies you choose matter a lot; treat it as **best-effort hardening** unless you have an operator-reviewed profile.
+
+### Ubuntu 24.04 install
+
+```bash
+sudo apt update
+sudo apt install -y nsjail
+```
+
+Verify:
+
+```bash
+nsjail --help | head
+```
+
+### Smoke command
+
+```bash
+nsjail --mode o --quiet -- bash -lc "echo hello from nsjail"
+```
+
+### Integration test (skip-gated)
+
+```bash
+OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run linux-sandbox.integration
+```
 
 ## Bubblewrap (`bwrap`) outer sandbox (Linux-only)
 

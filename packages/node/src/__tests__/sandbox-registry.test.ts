@@ -19,4 +19,12 @@ describe("getSandboxBackend", () => {
     expect(wrapped.cmd).toBe("bwrap");
     expect(wrapped.args.join(" ")).toContain("--ro-bind /usr /usr");
   });
+
+  it("wires the linux nsjail backend", () => {
+    const cfg = parseSandboxConfig({ backend: "nsjail", options: { network: "deny" } });
+    const b = getSandboxBackend("nsjail");
+    expect(b.name).toBe("nsjail");
+    const ps = b.createProcessSandbox({ config: cfg });
+    expect(ps?.name).toBe("nsjail");
+  });
 });

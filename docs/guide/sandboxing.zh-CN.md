@@ -81,20 +81,54 @@ sequenceDiagram
   A-->>U: 助手回复
 ```
 
-## 另一种设计（未实现）：Bubblewrap-native 执行引擎
+## Native 执行引擎（v6 已实现）
 
 如果你希望 Bubblewrap 与 WASI 在“选择其一”意义上是平级的（即启用 Bubblewrap 就完全不依赖 WASI 技术栈），那就意味着服务器侧需要第二套执行引擎：
 
 - `WASI 引擎`：执行签名的 WASI tool bundles（可移植；与浏览器对齐）。
-- `Native 引擎`：在 Bubblewrap 中执行宿主机原生命令/二进制（Linux-only；除非再引入一套 Linux userland/toolchain 分发策略，否则很难与浏览器语义对齐）。
+- `Native 引擎`：在沙箱中执行宿主机原生命令/二进制（Linux-only；除非再引入一套 Linux userland/toolchain 分发策略，否则很难与浏览器语义对齐）。
 
-当前仓库 **没有实现** native 引擎。v5 只实现了“外层沙箱适配器”，用于加固现有的 WASI 路径。
+本仓库在 v6 已实现 native 引擎（见下方示意图）。v5 的重点是“外层沙箱适配器”，用于加固 WASI 路径（沙箱叠加 / sandbox stacking）。
 
 ## Native 引擎示意图（v6）
 
 下面这张图对应 **服务器侧 native 引擎 + Bubblewrap** 的执行链路（渲染版）：
 
 ![Native 引擎（Bubblewrap）时序图](native_sandbox_sequenceDiagram_v6.png)
+
+## nsjail（仅 Linux，可选后端）
+
+`nsjail` 是另一个 Linux 沙箱 runner，可在一些部署中作为替代后端使用。
+
+重要说明：
+
+- **仅 Linux**，并依赖内核 namespaces 配置。
+- 相比 Bubblewrap，这类后端更依赖“运维侧策略/参数”才能达到预期隔离强度；默认当作 **best-effort 加固** 使用更稳妥。
+
+### Ubuntu 24.04 安装
+
+```bash
+sudo apt update
+sudo apt install -y nsjail
+```
+
+验证：
+
+```bash
+nsjail --help | head
+```
+
+### Smoke 命令
+
+```bash
+nsjail --mode o --quiet -- bash -lc "echo hello from nsjail"
+```
+
+### 集成测试（条件跳过）
+
+```bash
+OPENAGENTIC_SANDBOX_INTEGRATION=1 pnpm -C packages/node test -- --run linux-sandbox.integration
+```
 
 ## Bubblewrap（`bwrap`）外层沙箱（仅 Linux）
 
