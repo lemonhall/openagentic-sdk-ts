@@ -61,6 +61,12 @@ v10 makes the built-in “Bash” tool live up to its name: push the shell seman
 
 - v10 index: `v10-index.md`
 
+## v11 plans (POSIX-ish `sh`: variables + field splitting + positional params)
+
+v11 closes the biggest remaining “POSIX `sh`” semantic gaps that still make real scripts behave surprisingly: a real shell variable model (export vs non-export), IFS field splitting, and positional parameters.
+
+- v11 index: `v11-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:
