@@ -21,5 +21,14 @@ describe("shell parser (v10)", () => {
     expect(ast.sequences[1]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", "b"]);
     expect(ast.sequences[2]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", "c"]);
   });
-});
 
+  it("supports backslash-escaping spaces in unquoted words", () => {
+    const ast = parseScript("echo a\\ b");
+    expect(ast.sequences[0]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", "a b"]);
+  });
+
+  it("supports backslash-escaping quotes inside double quotes", () => {
+    const ast = parseScript("echo \"a\\\"b\"");
+    expect(ast.sequences[0]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", "a\"b"]);
+  });
+});

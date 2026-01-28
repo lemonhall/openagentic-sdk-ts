@@ -86,7 +86,29 @@ export function tokenize(script: string): Token[] {
       i++;
       let buf = "";
       while (i < s.length && s[i] !== quote) {
-        buf += s[i];
+        const c = s[i]!;
+        if (quote === "\"" && c === "\\") {
+          const next = s[i + 1];
+          if (next === undefined) {
+            buf += "\\";
+            i++;
+            continue;
+          }
+          if (next === "\n") {
+            i += 2;
+            continue;
+          }
+          // POSIX-ish: inside double quotes, backslash escapes only a small set.
+          if (next === "\"" || next === "\\" || next === "$" || next === "`") {
+            buf += next;
+            i += 2;
+            continue;
+          }
+          buf += `\\${next}`;
+          i += 2;
+          continue;
+        }
+        buf += c;
         i++;
       }
       if (i >= s.length) throw new Error("Shell: unterminated quote");
@@ -99,6 +121,21 @@ export function tokenize(script: string): Token[] {
     let buf = "";
     while (i < s.length) {
       const c = s[i];
+      if (c === "\\") {
+        const next = s[i + 1];
+        if (next === undefined) {
+          buf += "\\";
+          i++;
+          continue;
+        }
+        if (next === "\n") {
+          i += 2;
+          continue;
+        }
+        buf += next;
+        i += 2;
+        continue;
+      }
       if (c === " " || c === "\t" || c === "\n" || c === "\r") break;
       if (c === ";") break;
       if (c === "'" || c === "\"") break;

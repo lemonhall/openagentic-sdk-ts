@@ -95,6 +95,25 @@ describe("BashTool (workspace-native)", () => {
     expect(out.stdout).toBe("a\nb\nc\n");
     expect(out.stderr).toBe("");
   });
+
+  it("supports backslash escapes (unquoted and double-quoted)", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out1 = (await bash.run(
+      { command: "echo a\\ b" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+    expect(out1.exit_code).toBe(0);
+    expect(out1.stdout).toBe("a b\n");
+
+    const out2 = (await bash.run(
+      { command: "echo \"a\\\"b\"" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+    expect(out2.exit_code).toBe(0);
+    expect(out2.stdout).toBe("a\"b\n");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {
