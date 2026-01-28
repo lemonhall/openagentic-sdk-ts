@@ -1,4 +1,3 @@
-export function createIndexedDbJsonlBackend(): never {
-  throw new Error("createIndexedDbJsonlBackend: not implemented");
-}
+export type { IndexedDbJsonlBackendOptions } from "./session/indexeddb-jsonl-backend.js";
+export { createIndexedDbJsonlBackend } from "./session/indexeddb-jsonl-backend.js";
 
