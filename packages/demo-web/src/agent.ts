@@ -32,6 +32,7 @@ export type CreateBrowserAgentOptions = {
   model: string;
   systemPrompt?: string;
   enableWasiBash?: boolean;
+  enableWasiNetFetch?: boolean;
   wasiBundleBaseUrl?: string;
   wasiPreopenDir?: string;
 };
@@ -118,7 +119,7 @@ export async function createBrowserAgent(options: CreateBrowserAgentOptions): Pr
     sessionStore: options.sessionStore,
     contextFactory: async (sessionId) => ({
       workspace: options.workspace,
-      netFetch: options.enableWasiBash ? { policy: {} } : undefined,
+      netFetch: options.enableWasiNetFetch ? { policy: {} } : undefined,
       emitEvent: async (ev: any) => options.sessionStore.appendEvent(sessionId, ev),
       wasi:
         options.enableWasiBash && sharedWasiRunner instanceof WorkerWasiRunner

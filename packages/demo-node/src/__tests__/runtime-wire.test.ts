@@ -92,6 +92,16 @@ describe("demo-node runtime wiring", () => {
     expect(out.stdout).toBe("hi\n");
   });
 
+  it("chooses in-process WASI runner when netFetch is enabled", async () => {
+    const choose = (runtimeMod as any).chooseNodeWasiRunnerKind as ((opts: any) => string) | undefined;
+    expect(typeof choose).toBe("function");
+    if (typeof choose !== "function") return;
+
+    expect(choose({ enableWasiNetFetch: true, wasmtimeAvailable: true })).toBe("inprocess");
+    expect(choose({ enableWasiNetFetch: true, wasmtimeAvailable: false })).toBe("inprocess");
+    expect(choose({ enableWasiNetFetch: false, wasmtimeAvailable: true })).toBe("wasmtime");
+  });
+
   it("defaults to WASI-backed Bash", async () => {
     const createDemoRuntime = (runtimeMod as any).createDemoRuntime as
       | ((opts: any) => Promise<{ tools: any }>)

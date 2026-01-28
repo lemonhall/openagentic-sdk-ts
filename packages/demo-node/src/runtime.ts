@@ -40,6 +40,7 @@ export type CreateDemoRuntimeOptions = {
   systemPrompt?: string;
   maxSteps?: number;
   enableWasiBash?: boolean;
+  enableWasiNetFetch?: boolean;
   wasiPreopenDir?: string;
   toolEngine?: "wasi" | "native";
   nativeRunner?: NativeRunner;
@@ -77,6 +78,12 @@ function hasWasmtime(): boolean {
   } catch {
     return false;
   }
+}
+
+export function chooseNodeWasiRunnerKind(options: { enableWasiNetFetch: boolean; wasmtimeAvailable: boolean }): "wasmtime" | "inprocess" {
+  // The wasmtime CLI runner cannot provide custom host imports (like openagentic_netfetch),
+  // so if netFetch is enabled we must use an in-process runner.
+  return options.enableWasiNetFetch ? "inprocess" : options.wasmtimeAvailable ? "wasmtime" : "inprocess";
 }
 
 function hasBwrap(bwrapPath: string): boolean {
@@ -161,6 +168,7 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
 }> {
   const toolEngine = options.toolEngine ?? ((process.env.OPENAGENTIC_TOOL_ENGINE as any) || "wasi");
   const enableWasiBash = toolEngine !== "native" && options.enableWasiBash !== false;
+  const enableWasiNetFetch = Boolean(options.enableWasiNetFetch ?? (process.env.OPENAGENTIC_WASI_NETFETCH === "1"));
 
   const tools = new ToolRegistry();
   tools.register(new ListDirTool());
@@ -202,9 +210,8 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
     const cache = fileCache(root);
     const coreUtils = await installSampleCoreUtils(root, cache);
     const langPython = await installSampleLangPython(root, cache);
-    const runner = hasWasmtime()
-      ? new WasmtimeWasiRunner({ processSandbox: demoProcessSandbox() })
-      : new InProcessWasiRunner();
+    const runnerKind = chooseNodeWasiRunnerKind({ enableWasiNetFetch, wasmtimeAvailable: hasWasmtime() });
+    const runner = runnerKind === "wasmtime" ? new WasmtimeWasiRunner({ processSandbox: demoProcessSandbox() }) : new InProcessWasiRunner();
     const command = new CommandTool({ runner, bundles: [coreUtils, langPython], cache });
     tools.register(new BashTool({ wasiCommand: command }));
     tools.register(new PythonTool({ command }));
@@ -224,7 +231,7 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
     sessionStore: options.sessionStore,
     contextFactory: async (sessionId) => ({
       workspace: options.workspace,
-      netFetch: enableWasiBash ? { policy: {} } : undefined,
+      netFetch: enableWasiNetFetch ? { policy: {} } : undefined,
       emitEvent: async (ev: any) => options.sessionStore.appendEvent(sessionId, ev),
       ...(options.wasiPreopenDir ? { wasi: { preopenDir: options.wasiPreopenDir } } : {}),
     }),

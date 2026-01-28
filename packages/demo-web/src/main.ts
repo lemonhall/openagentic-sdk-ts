@@ -43,6 +43,10 @@ async function main(): Promise<void> {
           <input id="wasiBash" type="checkbox" checked />
           <span>WASI Bash</span>
         </label>
+        <label class="oaToggle">
+          <input id="wasiNetFetch" type="checkbox" />
+          <span>WASI netFetch</span>
+        </label>
         <div class="oaButtons">
           <button id="chooseDir" class="oaBtn">Choose Directory</button>
           <button id="importDir" class="oaBtn">Import → OPFS</button>
@@ -98,6 +102,7 @@ async function main(): Promise<void> {
   const proxyUrlEl = document.querySelector<HTMLInputElement>("#proxyUrl")!;
   const modelEl = document.querySelector<HTMLInputElement>("#model")!;
   const wasiBashEl = document.querySelector<HTMLInputElement>("#wasiBash")!;
+  const wasiNetFetchEl = document.querySelector<HTMLInputElement>("#wasiNetFetch")!;
   const statusEl = document.querySelector<HTMLDivElement>("#status")!;
   const transcriptEl = document.querySelector<HTMLDivElement>("#transcript")!;
   const filesEl = document.querySelector<HTMLDivElement>("#files")!;
@@ -355,6 +360,7 @@ async function main(): Promise<void> {
         model: modelEl.value.trim() || "gpt-5.2",
         providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
         enableWasiBash: wasiBashEl.checked,
+        enableWasiNetFetch: wasiNetFetchEl.checked,
         wasiPreopenDir: OPFS_DIR,
       });
       return { runtime: agent.runtime, refreshFiles };

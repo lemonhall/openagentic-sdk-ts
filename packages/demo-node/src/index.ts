@@ -48,6 +48,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
   const projectDir = getFlagValue(argv, "--project");
   const once = getFlagValue(argv, "--once");
   const enableWasiBash = !argv.includes("--no-wasi");
+  const enableWasiNetFetch = argv.includes("--wasi-netfetch");
   if (once != null) {
     const injectedProvider = deps.provider as ModelProvider | undefined;
     const baseUrl = deps.baseUrl ?? baseUrlFlag ?? process.env.OPENAI_BASE_URL;
@@ -94,6 +95,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
       apiKey,
       systemPrompt: deps.systemPrompt,
       enableWasiBash,
+      enableWasiNetFetch,
       wasiPreopenDir,
     });
 
@@ -156,6 +158,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
     apiKey,
     systemPrompt: deps.systemPrompt,
     enableWasiBash,
+    enableWasiNetFetch,
     wasiPreopenDir,
   });
   const renderer = createCliRenderer(stdout);
