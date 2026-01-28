@@ -1,6 +1,6 @@
 import type { Workspace } from "@openagentic/workspace";
 
-import type { SequenceNode, WordToken } from "./parser.js";
+import type { PipelineNode, ScriptNode, SequenceNode, WordToken } from "./parser.js";
 
 export type ShellExecOptions = {
   env?: Record<string, string>;
@@ -64,7 +64,7 @@ async function tokensToArgv(tokens: WordToken[], env: Record<string, string>, wo
 }
 
 export async function execSequence(
-  ast: SequenceNode,
+  ast: ScriptNode,
   opts: ShellExecOptions,
   deps: { runCommand: ShellCommandRunner; workspace: Workspace },
 ): Promise<ShellExecResult> {
@@ -72,7 +72,7 @@ export async function execSequence(
   const state = { cwd: opts.cwd ?? "" };
   const { runCommand, workspace } = deps;
 
-  const runPipeline = async (pipeline: SequenceNode["head"]): Promise<ShellExecResult> => {
+  const runPipeline = async (pipeline: PipelineNode): Promise<ShellExecResult> => {
     let stdin: string | undefined;
     let lastStdout = "";
     let lastStderr = "";
@@ -128,11 +128,26 @@ export async function execSequence(
     return { exitCode: lastExit, stdout: lastStdout, stderr: lastStderr };
   };
 
-  let acc = await runPipeline(ast.head);
-  for (const step of ast.tail) {
-    const shouldRun = step.op === "&&" ? acc.exitCode === 0 : acc.exitCode !== 0;
-    if (!shouldRun) continue;
-    acc = await runPipeline(step.pipeline);
+  const runSequence = async (seq: SequenceNode): Promise<ShellExecResult> => {
+    let acc = await runPipeline(seq.head);
+    for (const step of seq.tail) {
+      const shouldRun = step.op === "&&" ? acc.exitCode === 0 : acc.exitCode !== 0;
+      if (!shouldRun) continue;
+      acc = await runPipeline(step.pipeline);
+    }
+    return acc;
+  };
+
+  let stdout = "";
+  let stderr = "";
+  let exitCode = 0;
+
+  for (const seq of ast.sequences) {
+    const out = await runSequence(seq);
+    stdout += out.stdout;
+    stderr += out.stderr;
+    exitCode = out.exitCode;
   }
-  return acc;
+
+  return { exitCode, stdout, stderr };
 }

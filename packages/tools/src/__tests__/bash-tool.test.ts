@@ -81,6 +81,20 @@ describe("BashTool (workspace-native)", () => {
     expect(out.exit_code).toBe(0);
     expect(out.stdout.trim().split(/\\s+/).sort()).toEqual(["a.txt"]);
   });
+
+  it("supports ';' sequencing and '#' comments", async () => {
+    const ws = new MemoryWorkspace();
+
+    const bash = new BashTool();
+    const out = (await bash.run(
+      { command: "echo a; echo b # comment\n echo c" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stdout).toBe("a\nb\nc\n");
+    expect(out.stderr).toBe("");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {

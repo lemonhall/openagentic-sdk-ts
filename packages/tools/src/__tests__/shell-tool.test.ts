@@ -54,6 +54,21 @@ describe("ShellTool", () => {
     expect(res.stdout).toBe("hi\n");
   });
 
+  it("supports ';' sequencing", async () => {
+    const root = sampleBundleRoot();
+    const bundle = await loadCoreUtilsBundle(root);
+    const cache = fileCache(root);
+    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache });
+    const shell = new ShellTool({ command });
+
+    const ws = new MemoryWorkspace();
+    const res = (await shell.run(
+      { script: "echo a; echo b" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+    expect(res.stdout).toBe("a\nb\n");
+  });
+
   it("pipes echo into grep", async () => {
     const root = sampleBundleRoot();
     const bundle = await loadCoreUtilsBundle(root);

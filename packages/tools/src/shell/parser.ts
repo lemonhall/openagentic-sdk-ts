@@ -1,5 +1,5 @@
 export type WordToken = { kind: "word"; value: string; quote: "none" | "single" | "double" };
-export type OpToken = { kind: "op"; value: "|" | "&&" | "||" | "<" | ">" | ">>" };
+export type OpToken = { kind: "op"; value: "|" | "&&" | "||" | "<" | ">" | ">>" | ";" };
 export type Token = WordToken | OpToken;
 
 export type Redir = { kind: "in" | "out" | "append"; path: WordToken };
@@ -18,6 +18,10 @@ export type SequenceNode = {
   tail: { op: "&&" | "||"; pipeline: PipelineNode }[];
 };
 
+export type ScriptNode = {
+  sequences: SequenceNode[];
+};
+
 function isOp(tok: Token | undefined, v: OpToken["value"]): tok is OpToken {
   if (!tok) return false;
   return tok.kind === "op" && tok.value === v;
@@ -34,8 +38,23 @@ export function tokenize(script: string): Token[] {
 
   while (i < s.length) {
     const ch = s[i];
-    if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
+    if (ch === " " || ch === "\t" || ch === "\r") {
       i++;
+      continue;
+    }
+    if (ch === "\n") {
+      out.push({ kind: "op", value: ";" });
+      i++;
+      continue;
+    }
+    if (ch === ";") {
+      out.push({ kind: "op", value: ";" });
+      i++;
+      continue;
+    }
+    if (ch === "#") {
+      // Comments start with an unquoted '#' token and run until newline.
+      while (i < s.length && s[i] !== "\n") i++;
       continue;
     }
 
@@ -81,6 +100,7 @@ export function tokenize(script: string): Token[] {
     while (i < s.length) {
       const c = s[i];
       if (c === " " || c === "\t" || c === "\n" || c === "\r") break;
+      if (c === ";") break;
       if (c === "'" || c === "\"") break;
       if (s.startsWith("&&", i) || s.startsWith("||", i) || s.startsWith(">>", i)) break;
       if (c === "|" || c === "<" || c === ">") break;
@@ -93,7 +113,7 @@ export function tokenize(script: string): Token[] {
   return out;
 }
 
-export function parse(script: string): SequenceNode {
+export function parseScript(script: string): ScriptNode {
   const toks = tokenize(script);
   let idx = 0;
 
@@ -136,15 +156,31 @@ export function parse(script: string): SequenceNode {
     return { commands };
   };
 
-  const head = parsePipeline();
-  const tail: SequenceNode["tail"] = [];
+  const parseSequence = (): SequenceNode => {
+    const head = parsePipeline();
+    const tail: SequenceNode["tail"] = [];
+    while (idx < toks.length) {
+      const t = peek();
+      if (!t || t.kind !== "op") break;
+      if (t.value !== "&&" && t.value !== "||") break;
+      take();
+      tail.push({ op: t.value, pipeline: parsePipeline() });
+    }
+    return { head, tail };
+  };
+
+  const sequences: SequenceNode[] = [];
   while (idx < toks.length) {
-    const t = peek();
-    if (!t || t.kind !== "op") throw new Error("Shell: unexpected token");
-    if (t.value !== "&&" && t.value !== "||") throw new Error("Shell: unexpected token");
-    take();
-    tail.push({ op: t.value, pipeline: parsePipeline() });
+    while (idx < toks.length && isOp(peek(), ";")) take();
+    if (idx >= toks.length) break;
+    sequences.push(parseSequence());
+    while (idx < toks.length && isOp(peek(), ";")) take();
   }
 
-  return { head, tail };
+  if (sequences.length === 0) throw new Error("Shell: expected command");
+  return { sequences };
+}
+
+export function parse(script: string): ScriptNode {
+  return parseScript(script);
 }
