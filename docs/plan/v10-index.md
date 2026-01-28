@@ -27,6 +27,12 @@ v10 is the version where we stop calling it “Bash” if it doesn’t act like 
 4. A compatibility test suite exists and runs in CI (guardrails against regressions).
 5. **Engineering discipline:** every feature slice lands as an isolated commit with `git push` (no “big-bang” commits).
 
+## Preflight (don’t waste a day on tooling drift)
+
+Before starting (or resuming) v10 work, run the repo preflight checklist:
+
+- `preflight-checklist.md`
+
 ## Plans (suggested execution order)
 
 1. `v10-feature-00-vision-posix.md`
@@ -36,4 +42,3 @@ v10 is the version where we stop calling it “Bash” if it doesn’t act like 
 5. `v10-feature-04-builtins-suite.md`
 6. `v10-feature-05-minimal-toolchain.md`
 7. `v10-feature-06-compat-tests.md`
-

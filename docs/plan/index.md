@@ -5,6 +5,7 @@ This directory contains the project vision and a set of executable v1 feature pl
 ## Core documents
 
 - Vision + core design: `2026-01-27-vision-and-core-design.md`
+- Preflight checklist (before starting a vN iteration): `preflight-checklist.md`
 
 ## v2 plans (make it runnable)
 
