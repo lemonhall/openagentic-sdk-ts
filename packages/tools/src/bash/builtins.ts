@@ -115,11 +115,26 @@ function formatPrintfOnce(fmtRaw: string, args: string[], startIdx: number): { o
 async function walkFiles(workspace: Workspace, dir: string): Promise<string[]> {
   const out: string[] = [];
   const entries = await workspace.listDir(dir);
+  entries.sort((a, b) => a.name.localeCompare(b.name));
   for (const e of entries) {
     const p = dir ? `${dir}/${e.name}` : e.name;
     if (e.type === "dir") out.push(...(await walkFiles(workspace, p)));
     else out.push(p);
   }
+  return out;
+}
+
+async function expandFileArgs(workspace: Workspace, cwd: string, args: string[]): Promise<string[]> {
+  const roots = args.length ? args : ["."];
+  const out: string[] = [];
+  for (const a0 of roots) {
+    const p = resolveCwdPath(cwd, a0);
+    const st = p === "" ? ({ type: "dir" } as const) : await workspace.stat(p);
+    if (!st) continue;
+    if (st.type === "file") out.push(p);
+    else out.push(...(await walkFiles(workspace, p)));
+  }
+  out.sort((a, b) => a.localeCompare(b));
   return out;
 }
 
@@ -511,9 +526,44 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
       else rest.push(a);
     }
 
-    const showLineNumbers = flags.includes("-n");
+    const wantHelp = flags.includes("--help") || flags.includes("-h");
+    if (wantHelp) {
+      const help =
+        [
+          "openagentic rg (builtin)",
+          "Usage:",
+          "  rg [OPTIONS] PATTERN [PATH ...]",
+          "  rg --files [PATH ...]",
+          "Options:",
+          "  -n, --line-number   Show line numbers",
+          "  --files             Print each searched file path",
+          "  -h, --help          Show help",
+          "  --version           Show version",
+          "Notes:",
+          "  This is a limited builtin. Enable WASI bundles for full ripgrep parity.",
+          "",
+        ].join("\n") + "\n";
+      return { exitCode: 0, stdout: help, stderr: "" };
+    }
+
+    if (flags.includes("--version")) return { exitCode: 0, stdout: "openagentic rg (builtin) 0.0.0\n", stderr: "" };
+
+    const supported = new Set(["-n", "--line-number", "--files"]);
+    for (const f of flags) {
+      if (supported.has(f)) continue;
+      return { exitCode: 2, stdout: "", stderr: `rg: unsupported option: ${asString(f)}` };
+    }
+
+    const showLineNumbers = flags.includes("-n") || flags.includes("--line-number");
+    const listFiles = flags.includes("--files");
+
+    if (listFiles) {
+      const files = await expandFileArgs(deps.workspace, io.cwd, rest);
+      return { exitCode: 0, stdout: files.length ? files.join("\n") + "\n" : "", stderr: "" };
+    }
+
     const pattern = rest[0];
-    const root = rest[1] ?? "";
+    const pathArgs = rest.slice(1);
     if (typeof pattern !== "string" || !pattern) return { exitCode: 2, stdout: "", stderr: "rg: pattern required" };
     let rx: RegExp;
     try {
@@ -523,7 +573,7 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
       return { exitCode: 2, stdout: "", stderr: `rg: invalid regex: ${err.message}` };
     }
 
-    const files = await walkFiles(deps.workspace, root === "." ? "" : root);
+    const files = await expandFileArgs(deps.workspace, io.cwd, pathArgs);
     let out = "";
     let matched = false;
     for (const p of files) {
