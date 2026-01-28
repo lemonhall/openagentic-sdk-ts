@@ -64,6 +64,19 @@ async function installCoreUtilsBundle(options: { wasiBundleBaseUrl?: string; cac
   return p;
 }
 
+async function installRipgrepBundle(options: { wasiBundleBaseUrl?: string; cache: BundleCache }): Promise<InstalledBundle> {
+  const base = String(options.wasiBundleBaseUrl ?? "");
+  const key = `${base}::ripgrep@15.1.0`;
+  const existing = sharedInstalls.get(key);
+  if (existing) return existing;
+  const p = (async () => {
+    const registry = createRegistryClient(base, { isOfficial: true });
+    return installBundle("ripgrep", "15.1.0", { registry, cache: options.cache, requireSignature: true });
+  })();
+  sharedInstalls.set(key, p);
+  return p;
+}
+
 async function installLangPythonBundle(options: { wasiBundleBaseUrl?: string; cache: BundleCache }): Promise<InstalledBundle> {
   const base = String(options.wasiBundleBaseUrl ?? "");
   const registry = createRegistryClient(base, { isOfficial: true });
@@ -127,7 +140,7 @@ export async function createBrowserAgent(options: CreateBrowserAgentOptions): Pr
   if (options.enableWasiBash) {
     const cache = getSharedBundleCache(options.wasiBundleBaseUrl);
     const coreUtils = await installCoreUtilsBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
-    const bundles = [coreUtils];
+    const bundles = [coreUtils, await installRipgrepBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache })];
     if (options.enableWasiPython) {
       bundles.push(await installLangPythonBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache }));
     }

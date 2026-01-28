@@ -4,8 +4,19 @@ import { JsonlSessionStore } from "@openagentic/sdk-core";
 import { MemoryWorkspace } from "@openagentic/workspace";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { createBrowserAgent } from "../agent.js";
+
+function repoRootFromHere(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  return join(here, "..", "..", "..", "..");
+}
+
+function bundlesRootFromRepo(): string {
+  return join(repoRootFromHere(), "packages", "bundles", "official");
+}
 
 class MemoryJsonlBackend {
   #files = new Map<string, string>();
@@ -36,7 +47,7 @@ describe("demo-web WASI Python", () => {
       const url = typeof input === "string" ? input : String(input?.url ?? "");
       if (init?.credentials !== "omit") throw new Error("expected credentials=omit");
       const u = new URL(url);
-      const full = join(process.cwd(), "public", u.pathname);
+      const full = join(bundlesRootFromRepo(), u.pathname);
       const bytes = await readFile(full);
       return {
         ok: true,

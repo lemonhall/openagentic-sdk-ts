@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import { JsonlSessionStore } from "@openagentic/sdk-core";
 import { MemoryWorkspace } from "@openagentic/workspace";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createBrowserAgent } from "../agent.js";
@@ -40,8 +39,8 @@ class FakeProvider {
   }
 }
 
-describe("demo-web WASI Bash", () => {
-  it("can enable WASI-backed Bash", async () => {
+describe("demo-web WASI rg", () => {
+  it("runs rg --version via WASI bundle", async () => {
     const origFetch = globalThis.fetch;
     globalThis.fetch = (async (input: any, init?: any) => {
       const url = typeof input === "string" ? input : String(input?.url ?? "");
@@ -72,11 +71,12 @@ describe("demo-web WASI Bash", () => {
 
       const bash = agent.tools.get("Bash");
       const out = (await bash.run(
-        { command: "echo hi" },
+        { command: "rg --version" },
         { sessionId: "s", toolUseId: "t", workspace } as any,
       )) as any;
 
-      expect(out.stdout).toBe("hi\n");
+      expect(out.exit_code).toBe(0);
+      expect(String(out.stdout)).toContain("ripgrep 15.1.0");
     } finally {
       globalThis.fetch = origFetch;
     }

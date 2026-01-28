@@ -49,6 +49,7 @@ const WASI_WHENCE_END = 2;
 
 const WASI_FILETYPE_DIRECTORY = 3;
 const WASI_FILETYPE_REGULAR_FILE = 4;
+const WASI_FILETYPE_CHARACTER_DEVICE = 2;
 
 const DEFAULT_NETFETCH_POLICY = {
   timeoutMs: 30_000,
@@ -206,6 +207,121 @@ export class InProcessWasiRunner implements WasiRunner {
         proc_exit(code: number) {
           throw new WasiExit(code >>> 0);
         },
+        random_get(bufPtr: number, bufLen: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const out = new Uint8Array(memory.buffer, bufPtr, bufLen);
+          const c: any = (globalThis as any).crypto;
+          if (c && typeof c.getRandomValues === "function") {
+            c.getRandomValues(out);
+          } else {
+            out.fill(0);
+          }
+          return WASI_ERRNO_SUCCESS;
+        },
+        poll_oneoff(inPtr: number, outPtr: number, nsubscriptions: number, neventsPtr: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const mem = new DataView(memory.buffer);
+          const ns = nsubscriptions >>> 0;
+          const SUBSCRIPTION_SIZE = 48;
+          const EVENT_SIZE = 32;
+
+          for (let i = 0; i < ns; i++) {
+            const sub = inPtr + i * SUBSCRIPTION_SIZE;
+            const userdata = mem.getBigUint64(sub + 0, true);
+            const type = mem.getUint8(sub + 8);
+
+            const ev = outPtr + i * EVENT_SIZE;
+            mem.setBigUint64(ev + 0, userdata, true);
+            mem.setUint16(ev + 8, WASI_ERRNO_SUCCESS, true); // errno
+            mem.setUint8(ev + 10, type); // type
+            mem.setUint8(ev + 11, 0); // padding
+
+            // Fill fd_readwrite union fields with zeros.
+            mem.setBigUint64(ev + 16, 0n, true); // nbytes
+            mem.setUint16(ev + 24, 0, true); // flags
+          }
+
+          mem.setUint32(neventsPtr, ns, true);
+          return WASI_ERRNO_SUCCESS;
+        },
+        sched_yield() {
+          return WASI_ERRNO_SUCCESS;
+        },
+        clock_time_get(_clockId: number, _precision: bigint, timePtr: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const ns = BigInt(Date.now()) * 1_000_000n;
+          writeU64(timePtr, ns);
+          return WASI_ERRNO_SUCCESS;
+        },
+        fd_filestat_get(fd: number, bufPtr: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const h = handles.get(fd);
+          const mem = new DataView(memory.buffer);
+
+          let filetype = WASI_FILETYPE_CHARACTER_DEVICE;
+          let size = 0n;
+          if (h && h.kind === "dir") filetype = WASI_FILETYPE_DIRECTORY;
+          if (h && h.kind === "file") {
+            filetype = WASI_FILETYPE_REGULAR_FILE;
+            size = BigInt((fsFiles.get(h.path)?.byteLength ?? 0) >>> 0);
+          }
+
+          // filestat layout (preview1):
+          // dev:u64 ino:u64 filetype:u8+pad7 nlink:u64 size:u64 atim:u64 mtim:u64 ctim:u64
+          mem.setBigUint64(bufPtr + 0, 0n, true); // dev
+          mem.setBigUint64(bufPtr + 8, 0n, true); // ino
+          mem.setUint8(bufPtr + 16, filetype);
+          mem.setBigUint64(bufPtr + 24, 0n, true); // nlink
+          mem.setBigUint64(bufPtr + 32, size, true); // size
+          mem.setBigUint64(bufPtr + 40, 0n, true); // atim
+          mem.setBigUint64(bufPtr + 48, 0n, true); // mtim
+          mem.setBigUint64(bufPtr + 56, 0n, true); // ctim
+          return WASI_ERRNO_SUCCESS;
+        },
+        fd_fdstat_get(fd: number, bufPtr: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const h = handles.get(fd);
+          if (!h) return WASI_ERRNO_BADF;
+          const mem = new DataView(memory.buffer);
+          let filetype = WASI_FILETYPE_CHARACTER_DEVICE;
+          if (h.kind === "dir") filetype = WASI_FILETYPE_DIRECTORY;
+          if (h.kind === "file") filetype = WASI_FILETYPE_REGULAR_FILE;
+
+          // fdstat layout (preview1):
+          // fs_filetype:u8 + pad1 + fs_flags:u16 + pad4 + fs_rights_base:u64 + fs_rights_inheriting:u64
+          mem.setUint8(bufPtr + 0, filetype);
+          mem.setUint16(bufPtr + 2, 0, true); // fs_flags
+          mem.setBigUint64(bufPtr + 8, 0n, true); // rights_base
+          mem.setBigUint64(bufPtr + 16, 0n, true); // rights_inheriting
+          return WASI_ERRNO_SUCCESS;
+        },
+        path_filestat_get(fd: number, _flags: number, pathPtr: number, pathLen: number, bufPtr: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const h = handles.get(fd);
+          if (!h || h.kind !== "dir") return WASI_ERRNO_BADF;
+
+          const raw = readString(pathPtr, pathLen);
+          const normalized = normalizeSandboxPath(raw === "." ? "" : raw);
+          if (normalized === null) return WASI_ERRNO_NOTCAPABLE;
+
+          const isDir = normalized === "" || [...fsFiles.keys()].some((k) => k.startsWith(`${normalized}/`));
+          const fileBytes = fsFiles.get(normalized);
+          if (!fileBytes && !isDir) return WASI_ERRNO_NOENT;
+
+          const mem = new DataView(memory.buffer);
+          const filetype = isDir ? WASI_FILETYPE_DIRECTORY : WASI_FILETYPE_REGULAR_FILE;
+          const size = fileBytes ? BigInt(fileBytes.byteLength >>> 0) : 0n;
+
+          mem.setBigUint64(bufPtr + 0, 0n, true); // dev
+          mem.setBigUint64(bufPtr + 8, 0n, true); // ino
+          mem.setUint8(bufPtr + 16, filetype);
+          mem.setBigUint64(bufPtr + 24, 0n, true); // nlink
+          mem.setBigUint64(bufPtr + 32, size, true); // size
+          mem.setBigUint64(bufPtr + 40, 0n, true); // atim
+          mem.setBigUint64(bufPtr + 48, 0n, true); // mtim
+          mem.setBigUint64(bufPtr + 56, 0n, true); // ctim
+          return WASI_ERRNO_SUCCESS;
+        },
         fd_prestat_get(fd: number, bufPtr: number) {
           if (!memory) return WASI_ERRNO_BADF;
           const h = handles.get(fd);
@@ -311,6 +427,17 @@ export class InProcessWasiRunner implements WasiRunner {
           const h = handles.get(fd);
           if (!h || h.kind !== "file") return WASI_ERRNO_BADF;
           handles.delete(fd);
+          return WASI_ERRNO_SUCCESS;
+        },
+        fd_tell(fd: number, offsetPtr: number) {
+          if (!memory) return WASI_ERRNO_BADF;
+          const h = handles.get(fd);
+          if (!h) return WASI_ERRNO_BADF;
+          if (h.kind === "file") {
+            writeU64(offsetPtr, BigInt(h.offset));
+            return WASI_ERRNO_SUCCESS;
+          }
+          writeU64(offsetPtr, 0n);
           return WASI_ERRNO_SUCCESS;
         },
         fd_seek(fd: number, offset: bigint, whence: number, newOffsetPtr: number) {

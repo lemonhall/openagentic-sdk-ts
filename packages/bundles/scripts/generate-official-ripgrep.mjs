@@ -64,11 +64,12 @@ async function main() {
 
   const officialRoot = join(repoRoot, "packages", "bundles", "official", "bundles", name, version);
   const webRoot = join(repoRoot, "packages", "demo-web", "public", "bundles", name, version);
+  const writeWeb = String(process.env.RG_WRITE_WEB ?? "").trim() === "1";
 
   const wasmBytes = new Uint8Array(await readFile(wasmPath));
 
   await writeBytes(join(officialRoot, "rg.wasm"), wasmBytes);
-  await writeBytes(join(webRoot, "rg.wasm"), wasmBytes);
+  if (writeWeb) await writeBytes(join(webRoot, "rg.wasm"), wasmBytes);
 
   const unsigned = {
     name,
@@ -94,11 +95,10 @@ async function main() {
 
   const manifestJson = JSON.stringify(manifest, null, 2) + "\n";
   await writeFile(join(officialRoot, "manifest.json"), manifestJson, "utf8");
-  await writeFile(join(webRoot, "manifest.json"), manifestJson, "utf8");
+  if (writeWeb) await writeFile(join(webRoot, "manifest.json"), manifestJson, "utf8");
 
   // eslint-disable-next-line no-console
-  console.log(`Wrote ${name}@${version} to:\n- ${officialRoot}\n- ${webRoot}`);
+  console.log(`Wrote ${name}@${version} to:\n- ${officialRoot}${writeWeb ? `\n- ${webRoot}` : ""}`);
 }
 
 await main();
-

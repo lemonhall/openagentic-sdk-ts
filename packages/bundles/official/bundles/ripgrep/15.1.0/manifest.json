@@ -1,0 +1,22 @@
+{
+  "name": "ripgrep",
+  "version": "15.1.0",
+  "assets": [
+    {
+      "path": "rg.wasm",
+      "sha256": "cc79eb0159e85c9e7038d78abdec55b430c0a7d5419988d90531336f09451086",
+      "size": 19670288
+    }
+  ],
+  "commands": [
+    {
+      "name": "rg",
+      "modulePath": "rg.wasm"
+    }
+  ],
+  "signature": {
+    "keyId": "dev-2026-01",
+    "alg": "ed25519",
+    "sigBase64": "zOF15NtIPDAKkL1QAUiHESs339EwUdV5q8CY3kbsxm/i1VSXvpKhKxkNpniXamgm1+tV5AOQ1oh/ZNO+KGoBCw=="
+  }
+}
