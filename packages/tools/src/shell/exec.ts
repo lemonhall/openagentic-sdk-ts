@@ -113,6 +113,17 @@ async function expandGlob(token: string, workspace: Workspace, cwd: string): Pro
   return matches;
 }
 
+function escapeRegExpCharClass(s: string): string {
+  // Escape characters that are special inside [...].
+  return s.replace(/[-\\\]^]/g, "\\$&");
+}
+
+function splitFields(s: string, ifs: string): string[] {
+  if (ifs === "") return [s];
+  const re = new RegExp(`[${escapeRegExpCharClass(ifs)}]+`, "g");
+  return s.split(re).filter(Boolean);
+}
+
 async function tokenToWords(
   tok: WordToken,
   ctx: { state: ShellState; stdin?: string; lastExitCode: number },
@@ -127,7 +138,13 @@ async function tokenToWords(
   if (tok.quote !== "none") return [withVars];
   // POSIX-ish behavior: empty unquoted expansions produce no word.
   if (withVars === "") return [];
-  return expandGlob(withVars, workspace, ctx.state.cwd);
+  const ifs = typeof ctx.state.vars.IFS === "string" ? ctx.state.vars.IFS : " \t\n";
+  const fields = splitFields(withVars, ifs);
+  const out: string[] = [];
+  for (const f of fields) {
+    out.push(...(await expandGlob(f, workspace, ctx.state.cwd)));
+  }
+  return out;
 }
 
 async function expandText(
