@@ -67,6 +67,8 @@ export class BashTool implements Tool {
           "command",
           "export",
           "unset",
+          "set",
+          "shift",
           "test",
           "[",
           "cd",

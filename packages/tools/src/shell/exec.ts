@@ -20,7 +20,7 @@ export type ShellCommandResult = ShellExecResult & { cwd?: string };
 
 export type ShellCommandRunner = (
   argv: string[],
-  io: { env: Record<string, string>; vars: Record<string, string>; exports: Set<string>; cwd: string; stdin?: string },
+  io: { env: Record<string, string>; vars: Record<string, string>; exports: Set<string>; positional: string[]; cwd: string; stdin?: string },
   deps: { workspace: Workspace },
 ) => Promise<ShellCommandResult>;
 
@@ -28,15 +28,23 @@ type ShellState = {
   vars: Record<string, string>;
   env: Record<string, string>;
   exports: Set<string>;
+  positional: string[];
   cwd: string;
   lastExitCode: number;
 };
 
 function cloneState(s: ShellState): ShellState {
-  return { vars: { ...s.vars }, env: { ...s.env }, exports: new Set(s.exports), cwd: s.cwd, lastExitCode: s.lastExitCode };
+  return {
+    vars: { ...s.vars },
+    env: { ...s.env },
+    exports: new Set(s.exports),
+    positional: [...s.positional],
+    cwd: s.cwd,
+    lastExitCode: s.lastExitCode,
+  };
 }
 
-function expandVars(token: string, vars: Record<string, string>, lastExitCode: number): string {
+function expandVars(token: string, ctx: { vars: Record<string, string>; positional: string[]; lastExitCode: number }): string {
   let out = "";
   for (let i = 0; i < token.length; i++) {
     const c = token[i]!;
@@ -46,8 +54,26 @@ function expandVars(token: string, vars: Record<string, string>, lastExitCode: n
     }
     const next = token[i + 1];
     if (next === "?") {
-      out += String(lastExitCode);
+      out += String(ctx.lastExitCode);
       i++;
+      continue;
+    }
+    if (next === "#") {
+      out += String(ctx.positional.length);
+      i++;
+      continue;
+    }
+    if (next === "@" || next === "*") {
+      out += ctx.positional.join(" ");
+      i++;
+      continue;
+    }
+    if (next && /[0-9]/.test(next)) {
+      let j = i + 1;
+      while (j < token.length && /[0-9]/.test(token[j]!)) j++;
+      const n = Number(token.slice(i + 1, j));
+      out += n >= 1 ? (ctx.positional[n - 1] ?? "") : "";
+      i = j - 1;
       continue;
     }
     if (next === "{") {
@@ -67,7 +93,7 @@ function expandVars(token: string, vars: Record<string, string>, lastExitCode: n
         continue;
       }
 
-      const value = vars[name];
+      const value = ctx.vars[name];
       if (defaultValue !== null) {
         out += value ? value : defaultValue;
       } else {
@@ -81,7 +107,7 @@ function expandVars(token: string, vars: Record<string, string>, lastExitCode: n
       let j = i + 1;
       while (j < token.length && /[A-Za-z0-9_]/.test(token[j]!)) j++;
       const name = token.slice(i + 1, j);
-      out += vars[name] ?? "";
+      out += ctx.vars[name] ?? "";
       i = j - 1;
       continue;
     }
@@ -132,7 +158,8 @@ async function tokenToWords(
 ): Promise<string[]> {
   const raw = tok.value;
   if (tok.quote === "single") return [raw];
-  let withVars = expandVars(raw, ctx.state.vars, ctx.lastExitCode);
+  if (tok.quote === "double" && raw === "$@") return [...ctx.state.positional];
+  let withVars = expandVars(raw, { vars: ctx.state.vars, positional: ctx.state.positional, lastExitCode: ctx.lastExitCode });
   withVars = await expandCommandSubstitutions(withVars, ctx, { workspace, runCommand: deps.runCommand });
 
   if (tok.quote !== "none") return [withVars];
@@ -152,7 +179,7 @@ async function expandText(
   ctx: { state: ShellState; stdin?: string; lastExitCode: number },
   deps: { runCommand: ShellCommandRunner; workspace: Workspace },
 ): Promise<string> {
-  let withVars = expandVars(raw, ctx.state.vars, ctx.lastExitCode);
+  let withVars = expandVars(raw, { vars: ctx.state.vars, positional: ctx.state.positional, lastExitCode: ctx.lastExitCode });
   return expandCommandSubstitutions(withVars, ctx, deps);
 }
 
@@ -352,18 +379,20 @@ async function execSequenceWithState(
             stdin = new TextDecoder().decode(bytes);
           }
 
-          const prior = new Map<string, string | undefined>();
-          for (const [k, v] of Object.entries(assignsMap)) {
-            prior.set(k, state.env[k]);
-            state.env[k] = v;
-          }
-          let out: ShellCommandResult;
-          try {
-            out = await runCommand(argv, { env: state.env, vars: state.vars, exports: state.exports, cwd: state.cwd, stdin }, { workspace });
-          } finally {
-            for (const [k, prev] of prior.entries()) {
-              // Only restore prefix-assigned values if they were not modified during execution.
-              if (state.env[k] === assignsMap[k]) {
+        const prior = new Map<string, string | undefined>();
+        for (const [k, v] of Object.entries(assignsMap)) {
+          prior.set(k, state.env[k]);
+          state.env[k] = v;
+        }
+        let out: ShellCommandResult;
+        try {
+          const io = { env: state.env, vars: state.vars, exports: state.exports, positional: state.positional, cwd: state.cwd, stdin };
+          out = await runCommand(argv, io, { workspace });
+          state.positional = io.positional;
+        } finally {
+          for (const [k, prev] of prior.entries()) {
+            // Only restore prefix-assigned values if they were not modified during execution.
+            if (state.env[k] === assignsMap[k]) {
                 if (prev === undefined) delete state.env[k];
                 else state.env[k] = prev;
               }
@@ -427,6 +456,7 @@ export async function execSequence(
     vars: { ...initEnv },
     env: { ...initEnv },
     exports: new Set(Object.keys(initEnv)),
+    positional: [],
     cwd: opts.cwd ?? "",
     lastExitCode: opts.lastExitCode ?? 0,
   };

@@ -2,7 +2,14 @@ import type { Workspace } from "@openagentic/workspace";
 
 import { resolveCwdPath } from "./path.js";
 
-export type BuiltinIo = { env: Record<string, string>; vars: Record<string, string>; exports: Set<string>; cwd: string; stdin?: string };
+export type BuiltinIo = {
+  env: Record<string, string>;
+  vars: Record<string, string>;
+  exports: Set<string>;
+  positional: string[];
+  cwd: string;
+  stdin?: string;
+};
 export type BuiltinResult = { exitCode: number; stdout: string; stderr: string; cwd?: string };
 export type BuiltinDeps = { workspace: Workspace; hasCommand?: (name: string) => boolean };
 
@@ -222,6 +229,26 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
     return { exitCode: ok ? 0 : 1, stdout: "", stderr: "" };
   }
 
+  if (cmd === "set") {
+    if (args.length === 0) return { exitCode: 0, stdout: "", stderr: "" };
+    if (args[0] !== "--") return { exitCode: 2, stdout: "", stderr: "set: only '--' is supported (v11)" };
+    io.positional = args.slice(1);
+    return { exitCode: 0, stdout: "", stderr: "" };
+  }
+
+  if (cmd === "shift") {
+    let n = 1;
+    if (args.length > 0) {
+      const raw = args[0] ?? "";
+      const parsed = Number(raw);
+      if (!Number.isInteger(parsed) || parsed < 0) return { exitCode: 2, stdout: "", stderr: `shift: invalid number: ${asString(raw)}` };
+      n = parsed;
+    }
+    if (n > io.positional.length) return { exitCode: 1, stdout: "", stderr: "shift: not enough positional parameters" };
+    io.positional = io.positional.slice(n);
+    return { exitCode: 0, stdout: "", stderr: "" };
+  }
+
   if (cmd === "date") {
     if (args.length > 0) return { exitCode: 2, stdout: "", stderr: "date: flags not supported (v10: add format support)" };
     return { exitCode: 0, stdout: `${isoDateFromEnv(io.env)}\n`, stderr: "" };
@@ -254,6 +281,8 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
       "[",
       "export",
       "unset",
+      "set",
+      "shift",
       "date",
       "uname",
       "whoami",
