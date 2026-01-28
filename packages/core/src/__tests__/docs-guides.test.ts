@@ -31,6 +31,10 @@ describe("docs/guide", () => {
     expect(quickNode).toContain("--no-wasi");
     expect(quickNode).toContain("OPENAI_BASE_URL");
 
+    const quickBrowser = await readText("docs/guide/quickstart-browser.md");
+    expect(quickBrowser.toLowerCase()).toContain("bundles base url");
+    expect(quickBrowser).toContain("/bundles/");
+
     const security = await readText("docs/guide/security.md");
     expect(security).toContain('credentials: "omit"');
     expect(security.toLowerCase()).toContain("shadow");

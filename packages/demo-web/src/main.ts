@@ -18,6 +18,7 @@ import { decodeTextPreview } from "./changeset-preview.js";
 import { summarizeChangeSet } from "./changeset-model.js";
 import { formatChangeSetSummary, renderChangeList } from "./changeset-ui.js";
 import { createDemoSessionStore } from "./session-store.js";
+import { defaultBundleBaseUrlFromProxy } from "./url-defaults.js";
 
 import "./styles.css";
 
@@ -361,6 +362,7 @@ async function main(): Promise<void> {
         providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
         enableWasiBash: wasiBashEl.checked,
         enableWasiNetFetch: wasiNetFetchEl.checked,
+        wasiBundleBaseUrl: defaultBundleBaseUrlFromProxy(proxyUrlEl.value),
         wasiPreopenDir: OPFS_DIR,
       });
       return { runtime: agent.runtime, refreshFiles };

@@ -49,6 +49,13 @@ Open the URL printed by Vite.
 
 ## WASI-backed `Bash` (preview)
 
-In the web UI, enable “WASI Bash” to run the `Bash` tool via WASI modules (served from the web app at `/bundles/core-utils/0.0.0/*`). This keeps the same shadow-workspace isolation model, but exercises the WASI toolchain path.
+In the web UI, enable “WASI Bash” to run the `Bash` tool via signed WASI bundles.
+
+By default, the demo derives the **bundles base URL** from the proxy URL:
+
+- Provider base URL: `http://localhost:8787/v1`
+- Bundles base URL: `http://localhost:8787` (served under `/bundles/...`)
+
+Bundle manifests are verified (signature + sha256) before use.
 
 Note: `WebSearch` requires a server-side `TAVILY_API_KEY` and is not enabled in the browser demo by default.
