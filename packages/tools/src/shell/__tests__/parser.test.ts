@@ -31,4 +31,14 @@ describe("shell parser (v10)", () => {
     const ast = parseScript("echo \"a\\\"b\"");
     expect(ast.sequences[0]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", "a\"b"]);
   });
+
+  it("concatenates mixed quoted/unquoted segments into one word", () => {
+    const ast = parseScript("echo foo\"bar\"baz");
+    expect(ast.sequences[0]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", "foobarbaz"]);
+  });
+
+  it("preserves empty double-quoted words", () => {
+    const ast = parseScript("echo \"\"");
+    expect(ast.sequences[0]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", ""]);
+  });
 });

@@ -114,6 +114,25 @@ describe("BashTool (workspace-native)", () => {
     expect(out2.exit_code).toBe(0);
     expect(out2.stdout).toBe("a\"b\n");
   });
+
+  it("supports word concatenation across quotes and preserves empty args", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out1 = (await bash.run(
+      { command: "echo foo\"bar\"baz" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+    expect(out1.exit_code).toBe(0);
+    expect(out1.stdout).toBe("foobarbaz\n");
+
+    const out2 = (await bash.run(
+      { command: "echo \"\"" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+    expect(out2.exit_code).toBe(0);
+    expect(out2.stdout).toBe("\n");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {

@@ -1,4 +1,4 @@
-export type WordToken = { kind: "word"; value: string; quote: "none" | "single" | "double" };
+export type WordToken = { kind: "word"; value: string; quote: "none" | "single" | "double" | "mixed" };
 export type OpToken = { kind: "op"; value: "|" | "&&" | "||" | "<" | ">" | ">>" | ";" };
 export type Token = WordToken | OpToken;
 
@@ -33,7 +33,113 @@ export function tokenize(script: string): Token[] {
 
   let i = 0;
   const pushWord = (value: string, quote: WordToken["quote"]) => {
-    if (value.length) out.push({ kind: "word", value, quote });
+    if (value.length || quote !== "none") out.push({ kind: "word", value, quote });
+  };
+
+  const readSingleQuoted = (): string => {
+    i++; // opening '
+    let buf = "";
+    while (i < s.length && s[i] !== "'") {
+      buf += s[i];
+      i++;
+    }
+    if (i >= s.length) throw new Error("Shell: unterminated quote");
+    i++; // closing '
+    return buf;
+  };
+
+  const readDoubleQuoted = (): string => {
+    i++; // opening "
+    let buf = "";
+    while (i < s.length && s[i] !== "\"") {
+      const c = s[i]!;
+      if (c === "\\") {
+        const next = s[i + 1];
+        if (next === undefined) {
+          buf += "\\";
+          i++;
+          continue;
+        }
+        if (next === "\n") {
+          i += 2;
+          continue;
+        }
+        // POSIX-ish: inside double quotes, backslash escapes only a small set.
+        if (next === "\"" || next === "\\" || next === "$" || next === "`") {
+          buf += next;
+          i += 2;
+          continue;
+        }
+        buf += `\\${next}`;
+        i += 2;
+        continue;
+      }
+      buf += c;
+      i++;
+    }
+    if (i >= s.length) throw new Error("Shell: unterminated quote");
+    i++; // closing "
+    return buf;
+  };
+
+  const readWord = (): WordToken => {
+    let buf = "";
+    let hasUnquoted = false;
+    let hasSingle = false;
+    let hasDouble = false;
+
+    while (i < s.length) {
+      const c = s[i]!;
+
+      if (c === " " || c === "\t" || c === "\r" || c === "\n") break;
+      if (c === ";") break;
+      if (s.startsWith("&&", i) || s.startsWith("||", i) || s.startsWith(">>", i)) break;
+      if (c === "|" || c === "<" || c === ">") break;
+
+      if (c === "'") {
+        buf += readSingleQuoted();
+        hasSingle = true;
+        continue;
+      }
+
+      if (c === "\"") {
+        buf += readDoubleQuoted();
+        hasDouble = true;
+        continue;
+      }
+
+      if (c === "\\") {
+        const next = s[i + 1];
+        if (next === undefined) {
+          buf += "\\";
+          hasUnquoted = true;
+          i++;
+          continue;
+        }
+        if (next === "\n") {
+          i += 2;
+          continue;
+        }
+        buf += next;
+        hasUnquoted = true;
+        i += 2;
+        continue;
+      }
+
+      buf += c;
+      hasUnquoted = true;
+      i++;
+    }
+
+    const quote: WordToken["quote"] =
+      hasSingle && !hasUnquoted && !hasDouble
+        ? "single"
+        : hasDouble && !hasUnquoted && !hasSingle
+          ? "double"
+          : !hasSingle && !hasDouble
+            ? "none"
+            : "mixed";
+    return { kind: "word", value: buf, quote };
   };
 
   while (i < s.length) {
@@ -80,71 +186,8 @@ export function tokenize(script: string): Token[] {
       continue;
     }
 
-    // quoted word
-    if (ch === "'" || ch === "\"") {
-      const quote = ch;
-      i++;
-      let buf = "";
-      while (i < s.length && s[i] !== quote) {
-        const c = s[i]!;
-        if (quote === "\"" && c === "\\") {
-          const next = s[i + 1];
-          if (next === undefined) {
-            buf += "\\";
-            i++;
-            continue;
-          }
-          if (next === "\n") {
-            i += 2;
-            continue;
-          }
-          // POSIX-ish: inside double quotes, backslash escapes only a small set.
-          if (next === "\"" || next === "\\" || next === "$" || next === "`") {
-            buf += next;
-            i += 2;
-            continue;
-          }
-          buf += `\\${next}`;
-          i += 2;
-          continue;
-        }
-        buf += c;
-        i++;
-      }
-      if (i >= s.length) throw new Error("Shell: unterminated quote");
-      i++; // closing quote
-      pushWord(buf, quote === "'" ? "single" : "double");
-      continue;
-    }
-
-    // unquoted word
-    let buf = "";
-    while (i < s.length) {
-      const c = s[i];
-      if (c === "\\") {
-        const next = s[i + 1];
-        if (next === undefined) {
-          buf += "\\";
-          i++;
-          continue;
-        }
-        if (next === "\n") {
-          i += 2;
-          continue;
-        }
-        buf += next;
-        i += 2;
-        continue;
-      }
-      if (c === " " || c === "\t" || c === "\n" || c === "\r") break;
-      if (c === ";") break;
-      if (c === "'" || c === "\"") break;
-      if (s.startsWith("&&", i) || s.startsWith("||", i) || s.startsWith(">>", i)) break;
-      if (c === "|" || c === "<" || c === ">") break;
-      buf += c;
-      i++;
-    }
-    pushWord(buf, "none");
+    const w = readWord();
+    pushWord(w.value, w.quote);
   }
 
   return out;
