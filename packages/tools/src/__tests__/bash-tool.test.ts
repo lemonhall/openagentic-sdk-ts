@@ -189,6 +189,44 @@ describe("BashTool (workspace-native)", () => {
     expect(out.stdout).toBe("grep: pattern required");
   });
 
+  it("prints '.' for pwd at workspace root", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run({ command: "pwd" }, { sessionId: "s", toolUseId: "t", workspace: ws } as any)) as any;
+    expect(out.exit_code).toBe(0);
+    expect(out.stdout).toBe(".\n");
+  });
+
+  it("supports head in pipelines", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: 'printf "a\\nb\\nc\\n" | head -n 2' },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stdout).toBe("a\nb\n");
+  });
+
+  it("supports minimal find with -maxdepth and -type", async () => {
+    const ws = new MemoryWorkspace();
+    await ws.writeFile("a.txt", new TextEncoder().encode("a"));
+    await ws.writeFile("b/c.txt", new TextEncoder().encode("c"));
+    await ws.writeFile("b/d/e.txt", new TextEncoder().encode("e"));
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "find . -maxdepth 2 -type f" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stdout).toBe("a.txt\nb/c.txt\n");
+  });
+
   it("applies redirections in order for '>file 2>&1'", async () => {
     const ws = new MemoryWorkspace();
     const bash = new BashTool();

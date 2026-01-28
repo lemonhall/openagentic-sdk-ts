@@ -310,6 +310,8 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
       "cd",
       "ls",
       "cat",
+      "head",
+      "find",
       "grep",
       "rg",
       "command",
@@ -333,7 +335,7 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
   }
 
   if (cmd === "pwd") {
-    return { exitCode: 0, stdout: `${io.cwd || ""}\n`, stderr: "" };
+    return { exitCode: 0, stdout: `${io.cwd ? io.cwd : "."}\n`, stderr: "" };
   }
 
   if (cmd === "cd") {
@@ -367,6 +369,104 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
       out += new TextDecoder().decode(bytes);
     }
     return { exitCode: 0, stdout: out, stderr: "" };
+  }
+
+  if (cmd === "head") {
+    let n = 10;
+    let i = 0;
+    const a0 = args[0] ?? "";
+    if (a0 === "-n") {
+      const raw = args[1] ?? "";
+      const parsed = Number(raw);
+      if (!Number.isInteger(parsed) || parsed < 0) return { exitCode: 2, stdout: "", stderr: `head: invalid number: ${asString(raw)}` };
+      n = parsed;
+      i = 2;
+    }
+
+    const takeHead = (text: string): string => {
+      const lines = text.split(/\n/);
+      if (text.endsWith("\n")) lines.pop();
+      const outLines = lines.slice(0, n);
+      return outLines.length ? outLines.join("\n") + "\n" : "";
+    };
+
+    const files = args.slice(i);
+    if (files.length === 0) return { exitCode: 0, stdout: takeHead(io.stdin ?? ""), stderr: "" };
+
+    let out = "";
+    for (const f0 of files) {
+      const p = resolveCwdPath(io.cwd, f0);
+      const bytes = await deps.workspace.readFile(p);
+      out += takeHead(new TextDecoder().decode(bytes));
+    }
+    return { exitCode: 0, stdout: out, stderr: "" };
+  }
+
+  if (cmd === "find") {
+    let startArg = ".";
+    let i = 0;
+    if ((args[0] ?? "").trim() && !(args[0] ?? "").startsWith("-")) {
+      startArg = args[0] ?? ".";
+      i = 1;
+    }
+
+    let maxDepth: number | null = null;
+    let typeFilter: "file" | "dir" | null = null;
+    while (i < args.length) {
+      const a0 = args[i] ?? "";
+      if (a0 === "-maxdepth") {
+        const raw = args[i + 1] ?? "";
+        const parsed = Number(raw);
+        if (!Number.isInteger(parsed) || parsed < 0) return { exitCode: 2, stdout: "", stderr: `find: invalid maxdepth: ${asString(raw)}` };
+        maxDepth = parsed;
+        i += 2;
+        continue;
+      }
+      if (a0 === "-type") {
+        const t = args[i + 1] ?? "";
+        if (t === "f") typeFilter = "file";
+        else if (t === "d") typeFilter = "dir";
+        else return { exitCode: 2, stdout: "", stderr: `find: unsupported -type: ${asString(t)}` };
+        i += 2;
+        continue;
+      }
+      return { exitCode: 2, stdout: "", stderr: `find: unsupported arg: ${asString(a0)}` };
+    }
+
+    const startPath = resolveCwdPath(io.cwd, startArg);
+    const startStat = startPath === "" ? ({ type: "dir" } as const) : await deps.workspace.stat(startPath);
+    if (!startStat) return { exitCode: 1, stdout: "", stderr: `find: ${asString(startArg)}: no such file or directory` };
+
+    const outPaths: string[] = [];
+    const matchesType = (t: "file" | "dir"): boolean => (typeFilter ? t === typeFilter : true);
+
+    const walk = async (path: string, depth: number): Promise<void> => {
+      const st = path === "" ? ({ type: "dir" } as const) : await deps.workspace.stat(path);
+      if (!st) return;
+
+      if (matchesType(st.type)) {
+        // Match POSIX behavior for root: print "."
+        outPaths.push(path === "" ? "." : path);
+      }
+
+      const limit = maxDepth ?? Number.POSITIVE_INFINITY;
+      if (st.type !== "dir") return;
+      if (depth >= limit) return;
+
+      const entries = await deps.workspace.listDir(path);
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+      for (const e of entries) {
+        const child = path ? `${path}/${e.name}` : e.name;
+        await walk(child, depth + 1);
+      }
+    };
+
+    await walk(startPath, 0);
+
+    // Our workspace paths are already normalized; keep output deterministic.
+    outPaths.sort((a, b) => a.localeCompare(b));
+    const stdout = outPaths.length ? outPaths.join("\n") + "\n" : "";
+    return { exitCode: 0, stdout, stderr: "" };
   }
 
   if (cmd === "grep") {
