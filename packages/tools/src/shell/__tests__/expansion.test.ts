@@ -63,5 +63,44 @@ describe("shell expansion (v10)", () => {
     expect(res.exitCode).toBe(0);
     expect(res.stdout).toBe("0\n1\n");
   });
-});
 
+  it("supports ${var} and ${var:-default}", async () => {
+    const ws = new MemoryWorkspace();
+
+    const ast1 = parseScript("echo ${X:-fallback}");
+    const res1 = await execSequence(ast1, { env: {}, cwd: "" }, {
+      workspace: ws,
+      runCommand: async (argv) => {
+        const cmd = argv[0] ?? "";
+        const args = argv.slice(1);
+        if (cmd === "echo") return { exitCode: 0, stdout: `${args.join(" ")}\n`, stderr: "" };
+        throw new Error(`unknown command: ${cmd}`);
+      },
+    });
+    expect(res1.stdout).toBe("fallback\n");
+
+    const ast2 = parseScript("echo ${X} ${X:-fallback}");
+    const res2 = await execSequence(ast2, { env: { X: "hi" }, cwd: "" }, {
+      workspace: ws,
+      runCommand: async (argv) => {
+        const cmd = argv[0] ?? "";
+        const args = argv.slice(1);
+        if (cmd === "echo") return { exitCode: 0, stdout: `${args.join(" ")}\n`, stderr: "" };
+        throw new Error(`unknown command: ${cmd}`);
+      },
+    });
+    expect(res2.stdout).toBe("hi hi\n");
+
+    const ast3 = parseScript("echo ${X:-fallback}");
+    const res3 = await execSequence(ast3, { env: { X: "" }, cwd: "" }, {
+      workspace: ws,
+      runCommand: async (argv) => {
+        const cmd = argv[0] ?? "";
+        const args = argv.slice(1);
+        if (cmd === "echo") return { exitCode: 0, stdout: `${args.join(" ")}\n`, stderr: "" };
+        throw new Error(`unknown command: ${cmd}`);
+      },
+    });
+    expect(res3.stdout).toBe("fallback\n");
+  });
+});

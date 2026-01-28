@@ -33,6 +33,33 @@ function expandVars(token: string, env: Record<string, string>, lastExitCode: nu
       i++;
       continue;
     }
+    if (next === "{") {
+      const end = token.indexOf("}", i + 2);
+      if (end === -1) {
+        out += "$";
+        continue;
+      }
+
+      const inner = token.slice(i + 2, end);
+      const defIdx = inner.indexOf(":-");
+      const name = defIdx >= 0 ? inner.slice(0, defIdx) : inner;
+      const defaultValue = defIdx >= 0 ? inner.slice(defIdx + 2) : null;
+
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+        i = end;
+        continue;
+      }
+
+      const value = env[name];
+      if (defaultValue !== null) {
+        out += value ? value : defaultValue;
+      } else {
+        out += value ?? "";
+      }
+
+      i = end;
+      continue;
+    }
     if (next && /[A-Za-z_]/.test(next)) {
       let j = i + 1;
       while (j < token.length && /[A-Za-z0-9_]/.test(token[j]!)) j++;
