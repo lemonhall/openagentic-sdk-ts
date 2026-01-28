@@ -49,4 +49,31 @@ describe("shell execution controls (v11)", () => {
     expect(res.stdout).toBe("");
     expect(res.stderr).toBe("");
   });
+
+  it("supports set -u (nounset) and errors on unbound $var", async () => {
+    const ws = new MemoryWorkspace();
+    const ast = parseScript("set -u; echo $NOPE; echo after");
+
+    const res = await execSequence(ast, { env: {}, cwd: "" }, {
+      workspace: ws,
+      runCommand: async (argv, io0) => {
+        const io = io0 as any;
+        const cmd = argv[0] ?? "";
+        const args = argv.slice(1);
+        if (cmd === "set") {
+          if (args.includes("-u")) {
+            io.options = io.options ?? { errexit: false, nounset: false };
+            io.options.nounset = true;
+          }
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        if (cmd === "echo") return { exitCode: 0, stdout: `${args.join(" ")}\n`, stderr: "" };
+        throw new Error(`unknown command: ${cmd}`);
+      },
+    });
+
+    expect(res.exitCode).toBe(1);
+    expect(res.stdout).toBe("");
+    expect(res.stderr).toBe("Shell: NOPE: unbound variable\n");
+  });
 });

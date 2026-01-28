@@ -44,10 +44,12 @@ type ShellState = {
 
 class ShellExit extends Error {
   readonly code: number;
-  constructor(code: number) {
+  readonly stderr?: string;
+  constructor(code: number, opts?: { stderr?: string }) {
     super("Shell: exit");
     this.name = "ShellExit";
     this.code = code;
+    this.stderr = opts?.stderr;
   }
 }
 
@@ -63,7 +65,7 @@ function cloneState(s: ShellState): ShellState {
   };
 }
 
-function expandVars(token: string, ctx: { vars: Record<string, string>; positional: string[]; lastExitCode: number }): string {
+function expandVars(token: string, ctx: { vars: Record<string, string>; positional: string[]; lastExitCode: number; nounset: boolean }): string {
   let out = "";
   for (let i = 0; i < token.length; i++) {
     const c = token[i]!;
@@ -126,6 +128,9 @@ function expandVars(token: string, ctx: { vars: Record<string, string>; position
       let j = i + 1;
       while (j < token.length && /[A-Za-z0-9_]/.test(token[j]!)) j++;
       const name = token.slice(i + 1, j);
+      if (ctx.nounset && !Object.prototype.hasOwnProperty.call(ctx.vars, name)) {
+        throw new ShellExit(1, { stderr: `Shell: ${name}: unbound variable\n` });
+      }
       out += ctx.vars[name] ?? "";
       i = j - 1;
       continue;
@@ -178,7 +183,12 @@ async function tokenToWords(
   const raw = tok.value;
   if (tok.quote === "single") return [raw];
   if (tok.quote === "double" && raw === "$@") return [...ctx.state.positional];
-  let withVars = expandVars(raw, { vars: ctx.state.vars, positional: ctx.state.positional, lastExitCode: ctx.lastExitCode });
+  let withVars = expandVars(raw, {
+    vars: ctx.state.vars,
+    positional: ctx.state.positional,
+    lastExitCode: ctx.lastExitCode,
+    nounset: ctx.state.options.nounset,
+  });
   withVars = await expandCommandSubstitutions(withVars, ctx, { workspace, runCommand: deps.runCommand });
 
   if (tok.quote !== "none") return [withVars];
@@ -198,7 +208,12 @@ async function expandText(
   ctx: { state: ShellState; stdin?: string; lastExitCode: number },
   deps: { runCommand: ShellCommandRunner; workspace: Workspace },
 ): Promise<string> {
-  let withVars = expandVars(raw, { vars: ctx.state.vars, positional: ctx.state.positional, lastExitCode: ctx.lastExitCode });
+  let withVars = expandVars(raw, {
+    vars: ctx.state.vars,
+    positional: ctx.state.positional,
+    lastExitCode: ctx.lastExitCode,
+    nounset: ctx.state.options.nounset,
+  });
   return expandCommandSubstitutions(withVars, ctx, deps);
 }
 
@@ -480,7 +495,7 @@ async function execSequenceWithState(
       if (state.options.errexit && out.exitCode !== 0 && seq.tail.length === 0) break;
     }
   } catch (e) {
-    if (e instanceof ShellExit) return { exitCode: e.code, stdout, stderr };
+    if (e instanceof ShellExit) return { exitCode: e.code, stdout, stderr: stderr + (e.stderr ?? "") };
     throw e;
   }
 
