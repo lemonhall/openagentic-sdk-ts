@@ -54,6 +54,12 @@ v9 is a convergence pass: make the repo’s **vision and defaults** match what a
 
 - v9 index: `v9-index.md`
 
+## v10 plans (POSIX-ish `sh`: real shell semantics + minimal toolchain)
+
+v10 makes the built-in “Bash” tool live up to its name: push the shell semantics toward **POSIX `sh`** (quoting, expansion order, redirects, pipes, exit code semantics, core builtins) and ship a pragmatic “minimal coreutils-like” command set so common scripts actually run in WASI and in the TS-native fallback.
+
+- v10 index: `v10-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:

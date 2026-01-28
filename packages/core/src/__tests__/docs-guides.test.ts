@@ -20,12 +20,18 @@ describe("docs/guide", () => {
     expect(plansIndex).toContain("v8-index.md");
     expect(plansIndex).toContain("v9 index");
     expect(plansIndex).toContain("v9-index.md");
+    expect(plansIndex).toContain("v10 index");
+    expect(plansIndex).toContain("v10-index.md");
 
     const v9Index = await readText("docs/plan/v9-index.md");
     expect(v9Index).toContain("v9 Plans Index");
 
+    const v10Index = await readText("docs/plan/v10-index.md");
+    expect(v10Index).toContain("v10 Plans Index");
+
     const vision = await readText("docs/plan/2026-01-27-vision-and-core-design.md");
     expect(vision).toContain("Status (as of v8");
+    expect(vision).toContain("POSIX");
 
     const guideReadme = await readText("docs/guide/README.md");
     expect(guideReadme).toContain("quickstart-node.md");

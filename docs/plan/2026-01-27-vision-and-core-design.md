@@ -25,6 +25,7 @@ production-grade OS sandboxes (without changing tool semantics).
   - Real filesystem access (File System Access API) is used only at explicit boundaries: import and commit.
 - **Deterministic auditability**: all tool use, permissions, and sandboxed I/O are recorded as events.
 - **Same semantics across browser/server**: “shell behavior” is implemented in TS host logic, not by relying on an OS shell.
+- **POSIX-ish `sh` is the target shell dialect**: the built-in “Bash” tool aims for POSIX `sh` compatibility (within a documented subset), so scripts behave predictably across browser and server.
 - **Bash is core**: a Bash-like experience is achieved via WASI tool execution + a `Shell(script)` compiler.
 - **Network is allowed for WASI tools** (runner-injected `fetch`), but **must not** use user cookies/credentials.
 - **Extensible sandboxing**: WASI is the *default* portable sandbox, but server deployments may wrap it with an
@@ -78,6 +79,7 @@ The high-level architecture remains valid, but several pieces are still “proto
 - **“Official bundles” are still dev/local-first**: the repo can serve signed bundles locally under `/bundles/...`, but it still needs a stable release artifact/publishing pipeline (versioning, key management, and a future public mirror story).
 - **Server-side WASI `netFetch` runner story needs a production-grade path**: correctness is explicit (`wasmtime` CLI runner fails fast when `netFetch` is requested), but real server workloads need a supported runner path with clear security/perf tradeoffs and tests.
 - **Release hardening**: keep tightening docs/guardrail tests and broaden e2e coverage so defaults don’t drift silently.
+- **POSIX-ish shell compatibility**: the current “restricted shell” subset is not yet POSIX `sh` compatible (quoting/escaping, expansion order, redirects, builtins, `$?`, and a minimal toolchain like `date`/`uname`/`whoami`).
 
 ## Sandbox backends (WASI-first, pluggable hardening)
 
@@ -214,6 +216,12 @@ Browser caches bundles in OPFS; server caches them in a configured local directo
 Close the remaining “vision gaps” that still feel prototype-grade: durable browser sessions, reviewable changeset UI, correct server WASI `netFetch` behavior, hosted official bundles, and an end-to-end test slice.
 
 See: `docs/plan/v8-index.md`.
+
+## Next milestone (v10)
+
+Make the built-in “Bash” tool substantially more POSIX-ish (`sh`) so common scripts run without surprise, and ship a pragmatic minimal toolchain (`date`, `uname`, `whoami`, search tooling) in the official WASI bundles.
+
+See: `docs/plan/v10-index.md`.
 
 ## Future extensions (explicitly out of v1)
 
