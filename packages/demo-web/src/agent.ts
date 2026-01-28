@@ -52,18 +52,44 @@ function createBrowserBundleCache(): BundleCache {
   };
 }
 
+const sharedBundleCaches = new Map<string, BundleCache>();
+function getSharedBundleCache(wasiBundleBaseUrl?: string): BundleCache {
+  const base = String(wasiBundleBaseUrl ?? "");
+  const existing = sharedBundleCaches.get(base);
+  if (existing) return existing;
+  const cache = createBrowserBundleCache();
+  sharedBundleCaches.set(base, cache);
+  return cache;
+}
+
+const sharedInstalls = new Map<string, Promise<InstalledBundle>>();
 async function installCoreUtilsBundle(options: { wasiBundleBaseUrl?: string; cache: BundleCache }): Promise<InstalledBundle> {
-  const registry = createRegistryClient(options.wasiBundleBaseUrl ?? "", { isOfficial: true });
-  return installBundle("core-utils", "0.0.0", { registry, cache: options.cache, requireSignature: true });
+  const base = String(options.wasiBundleBaseUrl ?? "");
+  const key = `${base}::core-utils@0.0.0`;
+  const existing = sharedInstalls.get(key);
+  if (existing) return existing;
+  const p = (async () => {
+    const registry = createRegistryClient(base, { isOfficial: true });
+    return installBundle("core-utils", "0.0.0", { registry, cache: options.cache, requireSignature: true });
+  })();
+  sharedInstalls.set(key, p);
+  return p;
 }
 
 async function installLangPythonBundle(options: { wasiBundleBaseUrl?: string; cache: BundleCache }): Promise<InstalledBundle> {
-  const registry = createRegistryClient(options.wasiBundleBaseUrl ?? "", { isOfficial: true });
+  const base = String(options.wasiBundleBaseUrl ?? "");
+  const registry = createRegistryClient(base, { isOfficial: true });
   const versions = ["0.1.0", "0.0.0"];
   let lastErr: unknown = null;
   for (const version of versions) {
     try {
-      return await installBundle("lang-python", version, { registry, cache: options.cache, requireSignature: true });
+      const key = `${base}::lang-python@${version}`;
+      const existing = sharedInstalls.get(key);
+      if (existing) return await existing;
+
+      const p = installBundle("lang-python", version, { registry, cache: options.cache, requireSignature: true });
+      sharedInstalls.set(key, p);
+      return await p;
     } catch (e) {
       lastErr = e;
       const msg = e instanceof Error ? e.message : String(e);
@@ -111,7 +137,7 @@ export async function createBrowserAgent(options: CreateBrowserAgentOptions): Pr
   tools.register(new GlobTool());
   tools.register(new GrepTool());
   if (options.enableWasiBash) {
-    const cache = createBrowserBundleCache();
+    const cache = getSharedBundleCache(options.wasiBundleBaseUrl);
     const coreUtils = await installCoreUtilsBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
     const bundles = [coreUtils];
     if (options.enableWasiPython) {

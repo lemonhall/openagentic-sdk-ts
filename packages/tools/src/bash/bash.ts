@@ -79,6 +79,10 @@ export class BashTool implements Tool {
           // baseline convenience builtins
           "echo",
           "printf",
+          // prefer host builtins over minimal WASI stubs (core-utils v0.0.0)
+          "cat",
+          "ls",
+          "grep",
         ]);
         const hasCommand = (n: string) => Boolean((this.#wasiCommand as any)?.hasCommand?.(n));
         if (forcedBuiltins.has(cmdName)) {

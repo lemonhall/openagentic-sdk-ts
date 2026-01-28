@@ -140,6 +140,23 @@ async function main(): Promise<void> {
   let pendingChangeSummary: ReturnType<typeof summarizeChangeSet> | null = null;
   let selectedChangePath: string | null = null;
   let previewToken = 0;
+  let runtimeCache: { key: string; runtime: any; refreshFiles: () => Promise<void> } | null = null;
+
+  function runtimeKey(): string {
+    return JSON.stringify({
+      model: modelEl.value.trim() || "gpt-5.2",
+      providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
+      enableWasiBash: wasiBashEl.checked,
+      enableWasiPython: wasiPythonEl.checked,
+      enableWasiNetFetch: wasiNetFetchEl.checked,
+      wasiBundleBaseUrl: defaultBundleBaseUrlFromProxy(proxyUrlEl.value),
+      wasiPreopenDir: OPFS_DIR,
+    });
+  }
+
+  function invalidateRuntime(): void {
+    runtimeCache = null;
+  }
 
   function setStatus(text: string): void {
     statusEl.textContent = text;
@@ -360,6 +377,9 @@ async function main(): Promise<void> {
     ensureRuntime: async () => {
       await ensureWorkspace();
       if (!workspace) throw new Error("OPFS workspace init failed");
+      const key = runtimeKey();
+      if (runtimeCache?.key === key) return { runtime: runtimeCache.runtime, refreshFiles: runtimeCache.refreshFiles };
+
       const agent = await createBrowserAgent({
         sessionStore,
         workspace,
@@ -371,6 +391,7 @@ async function main(): Promise<void> {
         wasiBundleBaseUrl: defaultBundleBaseUrlFromProxy(proxyUrlEl.value),
         wasiPreopenDir: OPFS_DIR,
       });
+      runtimeCache = { key, runtime: agent.runtime, refreshFiles };
       return { runtime: agent.runtime, refreshFiles };
     },
     onUserMessage: (t) => {
@@ -439,6 +460,7 @@ async function main(): Promise<void> {
       setStatus("snapshotting...");
       baseSnapshot = await snapshotWorkspace(workspace);
       resetBrowserWasiRunner();
+      invalidateRuntime();
       await refreshFiles();
       setStatus("imported to OPFS");
     } catch (e) {
@@ -468,6 +490,7 @@ async function main(): Promise<void> {
       await clearDirectoryHandle(opfsDemoDir as any);
       baseSnapshot = null;
       resetBrowserWasiRunner();
+      invalidateRuntime();
       await refreshFiles();
       setStatus("OPFS cleared");
     } catch (e) {
