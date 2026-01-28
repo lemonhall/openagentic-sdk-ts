@@ -1,5 +1,5 @@
 export type WordToken = { kind: "word"; value: string; quote: "none" | "single" | "double" | "mixed" };
-export type OpToken = { kind: "op"; value: "|" | "&&" | "||" | "<" | ">" | ">>" | ";" };
+export type OpToken = { kind: "op"; value: "(" | ")" | "|" | "&&" | "||" | "<" | ">" | ">>" | ";" };
 export type Token = WordToken | OpToken;
 
 export type Redir = { kind: "in" | "out" | "append"; path: WordToken };
@@ -7,6 +7,7 @@ export type Redir = { kind: "in" | "out" | "append"; path: WordToken };
 export type CommandNode = {
   argv: WordToken[];
   redirs: Redir[];
+  subshell?: ScriptNode;
 };
 
 export type PipelineNode = {
@@ -92,7 +93,7 @@ export function tokenize(script: string): Token[] {
       const c = s[i]!;
 
       if (c === " " || c === "\t" || c === "\r" || c === "\n") break;
-      if (c === ";") break;
+      if (c === ";" || c === "(" || c === ")") break;
       if (s.startsWith("&&", i) || s.startsWith("||", i) || s.startsWith(">>", i)) break;
       if (c === "|" || c === "<" || c === ">") break;
 
@@ -158,6 +159,11 @@ export function tokenize(script: string): Token[] {
       i++;
       continue;
     }
+    if (ch === "(" || ch === ")") {
+      out.push({ kind: "op", value: ch });
+      i++;
+      continue;
+    }
     if (ch === "#") {
       // Comments start with an unquoted '#' token and run until newline.
       while (i < s.length && s[i] !== "\n") i++;
@@ -200,65 +206,86 @@ export function parseScript(script: string): ScriptNode {
   const peek = () => toks[idx];
   const take = () => toks[idx++];
 
-  const parseCommand = (): CommandNode => {
-    const argv: WordToken[] = [];
-    const redirs: Redir[] = [];
+  const parseScriptFromTokens = (stopAt?: ")" ): ScriptNode => {
+    const parseRedirs = (redirs: Redir[]) => {
+      while (idx < toks.length) {
+        const t = peek();
+        if (t.kind !== "op") break;
+        if (t.value !== "<" && t.value !== ">" && t.value !== ">>") break;
+        const op = take() as OpToken;
+        const next = take() as Token | undefined;
+        if (!next || next.kind !== "word") throw new Error("Shell: expected path after redirect");
+        redirs.push({
+          kind: op.value === "<" ? "in" : op.value === ">" ? "out" : "append",
+          path: next as WordToken,
+        });
+      }
+    };
 
+    const parseCommand = (): CommandNode => {
+      const argv: WordToken[] = [];
+      const redirs: Redir[] = [];
+
+      if (isOp(peek(), "(")) {
+        take(); // (
+        const inner = parseScriptFromTokens(")");
+        if (!isOp(peek(), ")")) throw new Error("Shell: expected ')'");
+        take(); // )
+        parseRedirs(redirs);
+        return { argv, redirs, subshell: inner };
+      }
+
+      while (idx < toks.length) {
+        const t = peek();
+        if (t.kind === "op") break;
+        argv.push(take() as WordToken);
+      }
+      if (argv.length === 0) throw new Error("Shell: expected command");
+
+      parseRedirs(redirs);
+      return { argv, redirs };
+    };
+
+    const parsePipeline = (): PipelineNode => {
+      const commands: CommandNode[] = [parseCommand()];
+      while (idx < toks.length && isOp(peek(), "|")) {
+        take();
+        commands.push(parseCommand());
+      }
+      return { commands };
+    };
+
+    const parseSequence = (): SequenceNode => {
+      const head = parsePipeline();
+      const tail: SequenceNode["tail"] = [];
+      while (idx < toks.length) {
+        if (stopAt && isOp(peek(), stopAt)) break;
+        const t = peek();
+        if (!t || t.kind !== "op") break;
+        if (t.value !== "&&" && t.value !== "||") break;
+        take();
+        tail.push({ op: t.value, pipeline: parsePipeline() });
+      }
+      return { head, tail };
+    };
+
+    const sequences: SequenceNode[] = [];
     while (idx < toks.length) {
-      const t = peek();
-      if (t.kind === "op") break;
-      argv.push(take() as WordToken);
-    }
-    if (argv.length === 0) throw new Error("Shell: expected command");
-
-    while (idx < toks.length) {
-      const t = peek();
-      if (t.kind !== "op") break;
-      if (t.value !== "<" && t.value !== ">" && t.value !== ">>") break;
-      const op = take() as OpToken;
-      const next = take() as Token | undefined;
-      if (!next || next.kind !== "word") throw new Error("Shell: expected path after redirect");
-      redirs.push({
-        kind: op.value === "<" ? "in" : op.value === ">" ? "out" : "append",
-        path: next as WordToken,
-      });
+      if (stopAt && isOp(peek(), stopAt)) break;
+      while (idx < toks.length && isOp(peek(), ";")) take();
+      if (stopAt && isOp(peek(), stopAt)) break;
+      if (idx >= toks.length) break;
+      sequences.push(parseSequence());
+      while (idx < toks.length && isOp(peek(), ";")) take();
     }
 
-    return { argv, redirs };
+    if (sequences.length === 0) throw new Error("Shell: expected command");
+    return { sequences };
   };
 
-  const parsePipeline = (): PipelineNode => {
-    const commands: CommandNode[] = [parseCommand()];
-    while (idx < toks.length && isOp(peek(), "|")) {
-      take();
-      commands.push(parseCommand());
-    }
-    return { commands };
-  };
-
-  const parseSequence = (): SequenceNode => {
-    const head = parsePipeline();
-    const tail: SequenceNode["tail"] = [];
-    while (idx < toks.length) {
-      const t = peek();
-      if (!t || t.kind !== "op") break;
-      if (t.value !== "&&" && t.value !== "||") break;
-      take();
-      tail.push({ op: t.value, pipeline: parsePipeline() });
-    }
-    return { head, tail };
-  };
-
-  const sequences: SequenceNode[] = [];
-  while (idx < toks.length) {
-    while (idx < toks.length && isOp(peek(), ";")) take();
-    if (idx >= toks.length) break;
-    sequences.push(parseSequence());
-    while (idx < toks.length && isOp(peek(), ";")) take();
-  }
-
-  if (sequences.length === 0) throw new Error("Shell: expected command");
-  return { sequences };
+  const ast = parseScriptFromTokens();
+  if (idx < toks.length) throw new Error("Shell: unexpected token");
+  return ast;
 }
 
 export function parse(script: string): ScriptNode {

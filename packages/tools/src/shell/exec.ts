@@ -5,6 +5,7 @@ import type { PipelineNode, ScriptNode, SequenceNode, WordToken } from "./parser
 export type ShellExecOptions = {
   env?: Record<string, string>;
   cwd?: string;
+  stdin?: string;
 };
 
 export type ShellExecResult = {
@@ -73,30 +74,47 @@ export async function execSequence(
   const { runCommand, workspace } = deps;
 
   const runPipeline = async (pipeline: PipelineNode): Promise<ShellExecResult> => {
-    let stdin: string | undefined;
+    let stdin: string | undefined = opts.stdin;
     let lastStdout = "";
     let lastStderr = "";
     let lastExit = 0;
 
     for (let i = 0; i < pipeline.commands.length; i++) {
       const cmd = pipeline.commands[i];
-      const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd);
-
-      // Apply input redirection on first command only (v1 simplification).
-      for (const r of cmd.redirs) {
-        if (r.kind !== "in") continue;
-        const [p0] = await tokenToWords(r.path, env, workspace, state.cwd);
-        const bytes = await workspace.readFile(p0);
-        stdin = new TextDecoder().decode(bytes);
-      }
 
       try {
-        const out = await runCommand(argv, { env, cwd: state.cwd, stdin }, { workspace });
-        lastExit = Number(out.exitCode ?? 0);
-        lastStdout = String(out.stdout ?? "");
-        lastStderr = String(out.stderr ?? "");
-        if (typeof out.cwd === "string") state.cwd = out.cwd;
-        stdin = lastStdout;
+        if (cmd.subshell) {
+          // Apply redirects for the subshell "command".
+          for (const r of cmd.redirs) {
+            if (r.kind !== "in") continue;
+            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd);
+            const bytes = await workspace.readFile(p0);
+            stdin = new TextDecoder().decode(bytes);
+          }
+
+          const out = await execSequence(cmd.subshell, { env, cwd: state.cwd, stdin }, { runCommand, workspace });
+          lastExit = Number(out.exitCode ?? 0);
+          lastStdout = String(out.stdout ?? "");
+          lastStderr = String(out.stderr ?? "");
+          stdin = lastStdout;
+        } else {
+          const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd);
+
+          // Apply input redirection on first command only (v1 simplification).
+          for (const r of cmd.redirs) {
+            if (r.kind !== "in") continue;
+            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd);
+            const bytes = await workspace.readFile(p0);
+            stdin = new TextDecoder().decode(bytes);
+          }
+
+          const out = await runCommand(argv, { env, cwd: state.cwd, stdin }, { workspace });
+          lastExit = Number(out.exitCode ?? 0);
+          lastStdout = String(out.stdout ?? "");
+          lastStderr = String(out.stderr ?? "");
+          if (typeof out.cwd === "string") state.cwd = out.cwd;
+          stdin = lastStdout;
+        }
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         lastExit = 127;

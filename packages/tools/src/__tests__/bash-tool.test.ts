@@ -133,6 +133,33 @@ describe("BashTool (workspace-native)", () => {
     expect(out2.exit_code).toBe(0);
     expect(out2.stdout).toBe("\n");
   });
+
+  it("supports subshell grouping with () and does not leak cwd", async () => {
+    const ws = new MemoryWorkspace();
+    await ws.writeFile("src/a/x.txt", new TextEncoder().encode("x"));
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "pwd; (cd a; pwd); pwd", cwd: "src" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stdout).toBe("src\nsrc/a\nsrc\n");
+  });
+
+  it("supports subshells inside pipelines", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "echo hi | (grep hi)" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stdout).toBe("hi\n");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {
