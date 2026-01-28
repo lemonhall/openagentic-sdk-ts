@@ -145,6 +145,45 @@ async function tokenToWords(
   return expandGlob(withVars, workspace, cwd);
 }
 
+async function expandText(
+  raw: string,
+  env: Record<string, string>,
+  cwd: string,
+  lastExitCode: number,
+  deps: { runCommand: ShellCommandRunner; workspace: Workspace },
+): Promise<string> {
+  let withVars = expandVars(raw, env, lastExitCode);
+  if (!withVars.includes("$(")) return withVars;
+
+  let out = "";
+  for (let i = 0; i < withVars.length; i++) {
+    if (withVars[i] !== "$" || withVars[i + 1] !== "(") {
+      out += withVars[i]!;
+      continue;
+    }
+
+    const start = i + 2;
+    let j = start;
+    let depth = 1;
+    while (j < withVars.length && depth > 0) {
+      const c = withVars[j]!;
+      if (c === "(") depth++;
+      else if (c === ")") depth--;
+      j++;
+    }
+    if (depth !== 0) throw new Error("Shell: unterminated command substitution");
+
+    const inner = withVars.slice(start, j - 1);
+    const innerAst = parseScript(inner);
+    const innerRes = await execSequence(innerAst, { env, cwd, lastExitCode }, deps);
+    const captured = String(innerRes.stdout ?? "").replace(/\r?\n$/, "");
+
+    out += captured;
+    i = j - 1;
+  }
+  return out;
+}
+
 async function tokensToArgv(
   tokens: WordToken[],
   env: Record<string, string>,
@@ -250,6 +289,16 @@ export async function execSequence(
       const preExit = state.lastExitCode;
 
       try {
+        const assigns = cmd.assigns ?? [];
+        const assignsMap: Record<string, string> = {};
+        for (const a of assigns) {
+          const eq = a.value.indexOf("=");
+          if (eq <= 0) continue;
+          const name = a.value.slice(0, eq);
+          const valueRaw = a.value.slice(eq + 1);
+          assignsMap[name] = await expandText(valueRaw, env, state.cwd, preExit, { runCommand, workspace });
+        }
+
         if (cmd.subshell) {
           // Apply redirects for the subshell "command".
           for (const r of cmd.redirs) {
@@ -261,7 +310,7 @@ export async function execSequence(
 
           const out = await execSequence(
             cmd.subshell,
-            { env, cwd: state.cwd, stdin, lastExitCode: preExit },
+            { env: { ...env, ...assignsMap }, cwd: state.cwd, stdin, lastExitCode: preExit },
             { runCommand, workspace },
           );
           lastExit = Number(out.exitCode ?? 0);
@@ -271,6 +320,17 @@ export async function execSequence(
           stdin = lastStdout;
           state.lastExitCode = lastExit;
         } else {
+          // Standalone assignments: persist into the current shell env (POSIX-ish; no separate shell-vars yet).
+          if (cmd.argv.length === 0 && Object.keys(assignsMap).length > 0) {
+            Object.assign(env, assignsMap);
+            lastExit = 0;
+            lastStdout = "";
+            lastStderr = "";
+            stdin = "";
+            state.lastExitCode = 0;
+            continue;
+          }
+
           const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd, preExit, runCommand);
 
           // Apply input redirection on first command only (v1 simplification).
@@ -281,7 +341,20 @@ export async function execSequence(
             stdin = new TextDecoder().decode(bytes);
           }
 
-          const out = await runCommand(argv, { env, cwd: state.cwd, stdin }, { workspace });
+          const prior = new Map<string, string | undefined>();
+          for (const [k, v] of Object.entries(assignsMap)) {
+            prior.set(k, env[k]);
+            env[k] = v;
+          }
+          let out: ShellCommandResult;
+          try {
+            out = await runCommand(argv, { env, cwd: state.cwd, stdin }, { workspace });
+          } finally {
+            for (const [k, prev] of prior.entries()) {
+              if (prev === undefined) delete env[k];
+              else env[k] = prev;
+            }
+          }
           lastExit = Number(out.exitCode ?? 0);
           const after = await applyOutputRedirs(cmd.redirs, { stdout: String(out.stdout ?? ""), stderr: String(out.stderr ?? "") }, { cwd: state.cwd, lastExitCode: preExit });
           lastStdout = after.stdout;

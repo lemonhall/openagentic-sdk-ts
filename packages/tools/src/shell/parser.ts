@@ -10,6 +10,7 @@ export type CommandNode = {
   argv: WordToken[];
   redirs: Redir[];
   subshell?: ScriptNode;
+  assigns?: WordToken[];
 };
 
 export type PipelineNode = {
@@ -305,8 +306,23 @@ export function parseScript(script: string): ScriptNode {
     };
 
     const parseCommand = (): CommandNode => {
+      const assigns: WordToken[] = [];
       const argv: WordToken[] = [];
       const redirs: Redir[] = [];
+
+      const isAssign = (w: WordToken): boolean => {
+        const eq = w.value.indexOf("=");
+        if (eq <= 0) return false;
+        const name = w.value.slice(0, eq);
+        return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+      };
+
+      while (idx < toks.length) {
+        const t = peek();
+        if (!t || t.kind !== "word") break;
+        if (!isAssign(t)) break;
+        assigns.push(take() as WordToken);
+      }
 
       if (isOp(peek(), "(")) {
         take(); // (
@@ -314,7 +330,7 @@ export function parseScript(script: string): ScriptNode {
         if (!isOp(peek(), ")")) throw new Error("Shell: expected ')'");
         take(); // )
         parseRedirs(redirs);
-        return { argv, redirs, subshell: inner };
+        return { argv, redirs, subshell: inner, assigns };
       }
 
       while (idx < toks.length) {
@@ -322,10 +338,10 @@ export function parseScript(script: string): ScriptNode {
         if (t.kind === "op") break;
         argv.push(take() as WordToken);
       }
-      if (argv.length === 0) throw new Error("Shell: expected command");
+      if (argv.length === 0 && assigns.length === 0) throw new Error("Shell: expected command");
 
       parseRedirs(redirs);
-      return { argv, redirs };
+      return { argv, redirs, assigns };
     };
 
     const parsePipeline = (): PipelineNode => {

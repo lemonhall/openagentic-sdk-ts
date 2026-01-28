@@ -41,4 +41,25 @@ describe("shell parser (v10)", () => {
     const ast = parseScript("echo \"\"");
     expect(ast.sequences[0]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", ""]);
   });
+
+  it("parses assignment prefixes (FOO=bar cmd ...) as assigns", () => {
+    const ast = parseScript("FOO=bar echo hi");
+    const cmd = ast.sequences[0]?.head.commands[0]!;
+    expect(cmd.assigns?.map((w) => w.value)).toEqual(["FOO=bar"]);
+    expect(cmd.argv.map((w) => w.value)).toEqual(["echo", "hi"]);
+  });
+
+  it("allows standalone assignments (FOO=bar) as a simple command", () => {
+    const ast = parseScript("FOO=bar");
+    const cmd = ast.sequences[0]?.head.commands[0]!;
+    expect(cmd.assigns?.map((w) => w.value)).toEqual(["FOO=bar"]);
+    expect(cmd.argv).toHaveLength(0);
+  });
+
+  it("allows assignment prefixes before subshell groups (FOO=bar (...))", () => {
+    const ast = parseScript("FOO=bar (echo hi)");
+    const cmd = ast.sequences[0]?.head.commands[0]!;
+    expect(cmd.assigns?.map((w) => w.value)).toEqual(["FOO=bar"]);
+    expect(cmd.subshell?.sequences[0]?.head.commands[0]?.argv.map((w) => w.value)).toEqual(["echo", "hi"]);
+  });
 });

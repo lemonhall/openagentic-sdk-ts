@@ -121,4 +121,26 @@ describe("shell expansion (v10)", () => {
     expect(res.exitCode).toBe(0);
     expect(res.stdout).toBe("hi\nxhiy\n");
   });
+
+  it("does not leak prefix-assigned env when the command throws", async () => {
+    const ws = new MemoryWorkspace();
+    const env: Record<string, string> = { FOO: "orig" };
+    const ast = parseScript("FOO=temp boom; echo $FOO");
+
+    const res = await execSequence(ast, { env, cwd: "" }, {
+      workspace: ws,
+      runCommand: async (argv) => {
+        const cmd = argv[0] ?? "";
+        const args = argv.slice(1);
+        if (cmd === "boom") throw new Error("boom");
+        if (cmd === "echo") return { exitCode: 0, stdout: `${args.join(" ")}\n`, stderr: "" };
+        throw new Error(`unknown command: ${cmd}`);
+      },
+    });
+
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toBe("orig\n");
+    expect(res.stderr).toBe("boom");
+    expect(env.FOO).toBe("orig");
+  });
 });

@@ -260,6 +260,21 @@ describe("BashTool (workspace-native)", () => {
     expect(out.stderr).toBe("");
     expect(out.stdout).toBe("bar\n\n");
   });
+
+  it("supports assignment prefixes (FOO=bar cmd) and standalone assignments (FOO=bar)", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "FOO=bar echo $FOO; FOO=bar; echo $FOO; BAR=baz; FOO=$BAR; echo $FOO" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stderr).toBe("");
+    // Prefix assignment should not affect expansion of later argv words in the same simple command.
+    expect(out.stdout).toBe("\nbar\nbaz\n");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {
