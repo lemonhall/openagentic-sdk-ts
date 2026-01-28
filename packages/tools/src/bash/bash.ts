@@ -59,7 +59,27 @@ export class BashTool implements Tool {
 
         // Always allow a small builtin set to run even when using WASI bundles.
         // These are either shell-control primitives or host-provided utilities.
-        const forcedBuiltins = new Set(["cd", "pwd", "command", "date", "uname", "whoami", "rg", ":", "true", "false"]);
+        const forcedBuiltins = new Set([
+          // shell-control primitives (must be builtins; can't be delegated)
+          ":",
+          "true",
+          "false",
+          "command",
+          "export",
+          "unset",
+          "test",
+          "[",
+          "cd",
+          "pwd",
+          // host-provided utilities (keep deterministic + portable)
+          "date",
+          "uname",
+          "whoami",
+          "rg",
+          // baseline convenience builtins
+          "echo",
+          "printf",
+        ]);
         const hasCommand = (n: string) => Boolean((this.#wasiCommand as any)?.hasCommand?.(n));
         if (forcedBuiltins.has(cmdName)) {
           const out = await runBuiltin(argv, io, { workspace: deps.workspace, hasCommand });

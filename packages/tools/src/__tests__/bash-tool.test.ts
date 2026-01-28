@@ -318,12 +318,25 @@ describe("BashTool (WASI backend)", () => {
     const ws = new MemoryWorkspace();
     const bash = new BashTool({ wasiCommand: command } as any);
     const out = (await bash.run(
-      { command: "command -v echo command date" },
+      { command: "command -v echo command date head : true false printf test [ export unset" },
       { sessionId: "s", toolUseId: "t", workspace: ws, env: { SOURCE_DATE_EPOCH: "0" } } as any,
     )) as any;
 
     expect(out.exit_code).toBe(0);
-    expect(out.stdout.split("\n").filter(Boolean)).toEqual(["echo", "command", "date"]);
+    expect(out.stdout.split("\n").filter(Boolean)).toEqual([
+      "echo",
+      "command",
+      "date",
+      "head",
+      ":",
+      "true",
+      "false",
+      "printf",
+      "test",
+      "[",
+      "export",
+      "unset",
+    ]);
   });
 
   it("supports date (deterministic via SOURCE_DATE_EPOCH)", async () => {

@@ -238,12 +238,32 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
     if (sub !== "-v") return { exitCode: 2, stdout: "", stderr: "command: only '-v' is supported" };
     const names = args.slice(1);
     if (names.length === 0) return { exitCode: 2, stdout: "", stderr: "command: name required" };
-    const builtins = new Set([":", "true", "false", "echo", "date", "uname", "whoami", "pwd", "cd", "ls", "cat", "grep", "rg", "command"]);
+    const builtins = new Set([
+      ":",
+      "true",
+      "false",
+      "echo",
+      "printf",
+      "test",
+      "[",
+      "export",
+      "unset",
+      "date",
+      "uname",
+      "whoami",
+      "pwd",
+      "cd",
+      "ls",
+      "cat",
+      "grep",
+      "rg",
+      "command",
+    ]);
 
     let ok = true;
     let out = "";
     for (const n of names) {
-      if (!isVarName(n)) {
+      if (!n) {
         ok = false;
         continue;
       }
