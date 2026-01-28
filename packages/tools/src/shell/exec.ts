@@ -33,6 +33,15 @@ type ShellState = {
   lastExitCode: number;
 };
 
+class ShellExit extends Error {
+  readonly code: number;
+  constructor(code: number) {
+    super("Shell: exit");
+    this.name = "ShellExit";
+    this.code = code;
+  }
+}
+
 function cloneState(s: ShellState): ShellState {
   return {
     vars: { ...s.vars },
@@ -371,6 +380,13 @@ async function execSequenceWithState(
 
           const argv = await tokensToArgv(cmd.argv, { state, stdin, lastExitCode: preExit }, workspace, { runCommand });
 
+          if ((argv[0] ?? "") === "exit") {
+            const raw = argv[1];
+            const code = raw === undefined ? state.lastExitCode : Number(raw);
+            const normalized = Number.isInteger(code) ? code : 2;
+            throw new ShellExit(normalized);
+          }
+
           // Apply input redirection on first command only (v1 simplification).
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
@@ -407,6 +423,7 @@ async function execSequenceWithState(
           state.lastExitCode = lastExit;
         }
       } catch (e) {
+        if (e instanceof ShellExit) throw e;
         const err = e instanceof Error ? e : new Error(String(e));
         lastExit = 127;
         const after = await applyOutputRedirs(cmd.redirs, { stdout: "", stderr: err.message }, { cwd: state.cwd, lastExitCode: preExit });
@@ -435,12 +452,17 @@ async function execSequenceWithState(
   let stderr = "";
   let exitCode = 0;
 
-  for (const seq of ast.sequences) {
-    const out = await runSequence(seq);
-    stdout += out.stdout;
-    stderr += out.stderr;
-    exitCode = out.exitCode;
-    state.lastExitCode = out.exitCode;
+  try {
+    for (const seq of ast.sequences) {
+      const out = await runSequence(seq);
+      stdout += out.stdout;
+      stderr += out.stderr;
+      exitCode = out.exitCode;
+      state.lastExitCode = out.exitCode;
+    }
+  } catch (e) {
+    if (e instanceof ShellExit) return { exitCode: e.code, stdout, stderr };
+    throw e;
   }
 
   return { exitCode, stdout, stderr };
