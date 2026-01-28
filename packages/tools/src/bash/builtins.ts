@@ -4,17 +4,91 @@ import { resolveCwdPath } from "./path.js";
 
 export type BuiltinIo = { env: Record<string, string>; cwd: string; stdin?: string };
 export type BuiltinResult = { exitCode: number; stdout: string; stderr: string; cwd?: string };
+export type BuiltinDeps = { workspace: Workspace; hasCommand?: (name: string) => boolean };
 
 function asString(v: unknown): string {
   return typeof v === "string" ? v : String(v ?? "");
 }
 
-export async function runBuiltin(argv: string[], io: BuiltinIo, deps: { workspace: Workspace }): Promise<BuiltinResult | null> {
+function isVarName(s: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(s);
+}
+
+function isoDateFromEnv(env: Record<string, string>): string {
+  const sde = env.SOURCE_DATE_EPOCH;
+  if (typeof sde === "string" && sde.trim()) {
+    const seconds = Number(sde);
+    if (Number.isFinite(seconds)) return new Date(seconds * 1000).toISOString();
+  }
+  const msRaw = env.OPENAGENTIC_DATE_EPOCH_MS;
+  if (typeof msRaw === "string" && msRaw.trim()) {
+    const ms = Number(msRaw);
+    if (Number.isFinite(ms)) return new Date(ms).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+async function walkFiles(workspace: Workspace, dir: string): Promise<string[]> {
+  const out: string[] = [];
+  const entries = await workspace.listDir(dir);
+  for (const e of entries) {
+    const p = dir ? `${dir}/${e.name}` : e.name;
+    if (e.type === "dir") out.push(...(await walkFiles(workspace, p)));
+    else out.push(p);
+  }
+  return out;
+}
+
+export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDeps): Promise<BuiltinResult | null> {
   const cmd = argv[0] ?? "";
   const args = argv.slice(1);
 
+  if (cmd === ":" || cmd === "true") return { exitCode: 0, stdout: "", stderr: "" };
+  if (cmd === "false") return { exitCode: 1, stdout: "", stderr: "" };
+
   if (cmd === "echo") {
     return { exitCode: 0, stdout: `${args.join(" ")}\n`, stderr: "" };
+  }
+
+  if (cmd === "date") {
+    if (args.length > 0) return { exitCode: 2, stdout: "", stderr: "date: flags not supported (v10: add format support)" };
+    return { exitCode: 0, stdout: `${isoDateFromEnv(io.env)}\n`, stderr: "" };
+  }
+
+  if (cmd === "uname") {
+    const flag = args[0] ?? "";
+    if (flag && flag !== "-s") return { exitCode: 2, stdout: "", stderr: `uname: unsupported flag: ${asString(flag)}` };
+    const v = io.env.OPENAGENTIC_UNAME ?? "WASI";
+    return { exitCode: 0, stdout: `${v}\n`, stderr: "" };
+  }
+
+  if (cmd === "whoami") {
+    const v = io.env.USER || io.env.OPENAGENTIC_WHOAMI || "unknown";
+    return { exitCode: 0, stdout: `${v}\n`, stderr: "" };
+  }
+
+  if (cmd === "command") {
+    const sub = args[0] ?? "";
+    if (sub !== "-v") return { exitCode: 2, stdout: "", stderr: "command: only '-v' is supported" };
+    const names = args.slice(1);
+    if (names.length === 0) return { exitCode: 2, stdout: "", stderr: "command: name required" };
+    const builtins = new Set([":", "true", "false", "echo", "date", "uname", "whoami", "pwd", "cd", "ls", "cat", "grep", "rg", "command"]);
+
+    let ok = true;
+    let out = "";
+    for (const n of names) {
+      if (!isVarName(n)) {
+        ok = false;
+        continue;
+      }
+      const found = builtins.has(n) || Boolean(deps.hasCommand?.(n));
+      if (!found) {
+        ok = false;
+        continue;
+      }
+      out += `${n}\n`;
+    }
+    return { exitCode: ok ? 0 : 1, stdout: out, stderr: "" };
   }
 
   if (cmd === "pwd") {
@@ -88,6 +162,44 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: { workspac
     return { exitCode: 0, stdout: out, stderr: "" };
   }
 
+  if (cmd === "rg") {
+    const flags: string[] = [];
+    const rest: string[] = [];
+    for (const a of args) {
+      if (a.startsWith("-") && a.length > 1) flags.push(a);
+      else rest.push(a);
+    }
+
+    const showLineNumbers = flags.includes("-n");
+    const pattern = rest[0];
+    const root = rest[1] ?? "";
+    if (typeof pattern !== "string" || !pattern) return { exitCode: 2, stdout: "", stderr: "rg: pattern required" };
+    let rx: RegExp;
+    try {
+      rx = new RegExp(pattern);
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      return { exitCode: 2, stdout: "", stderr: `rg: invalid regex: ${err.message}` };
+    }
+
+    const files = await walkFiles(deps.workspace, root === "." ? "" : root);
+    let out = "";
+    let matched = false;
+    for (const p of files) {
+      const bytes = await deps.workspace.readFile(p).catch(() => null);
+      if (!bytes) continue;
+      const text = new TextDecoder().decode(bytes);
+      const lines = text.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i] ?? "";
+        if (!rx.test(line)) continue;
+        matched = true;
+        out += showLineNumbers ? `${p}:${i + 1}:${line}\n` : `${p}:${line}\n`;
+      }
+    }
+
+    return { exitCode: matched ? 0 : 1, stdout: out, stderr: "" };
+  }
+
   return null;
 }
-

@@ -55,7 +55,19 @@ export class BashTool implements Tool {
     const res = await execSequence(ast, { env, cwd }, {
       workspace,
       runCommand: async (argv, io, deps) => {
-        if (this.#wasiCommand) {
+        const cmdName = argv[0] ?? "";
+
+        // Always allow a small builtin set to run even when using WASI bundles.
+        // These are either shell-control primitives or host-provided utilities.
+        const forcedBuiltins = new Set(["cd", "pwd", "command", "date", "uname", "whoami", "rg", ":", "true", "false"]);
+        const hasCommand = (n: string) => Boolean((this.#wasiCommand as any)?.hasCommand?.(n));
+        if (forcedBuiltins.has(cmdName)) {
+          const out = await runBuiltin(argv, io, { workspace: deps.workspace, hasCommand });
+          if (!out) throw new Error(`unknown command: ${cmdName}`);
+          return out;
+        }
+
+        if (this.#wasiCommand && hasCommand(cmdName)) {
           const out = (await this.#wasiCommand.run(
             {
               argv,
@@ -69,7 +81,7 @@ export class BashTool implements Tool {
           return { exitCode: Number(out.exitCode ?? out.exit_code ?? 0), stdout: String(out.stdout ?? ""), stderr: String(out.stderr ?? "") };
         }
 
-        const out = await runBuiltin(argv, io, deps);
+        const out = await runBuiltin(argv, io, { workspace: deps.workspace, hasCommand });
         if (!out) throw new Error(`unknown command: ${argv[0] ?? ""}`);
         return out;
       },

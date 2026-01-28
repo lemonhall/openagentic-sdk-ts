@@ -58,6 +58,13 @@ export class CommandTool implements Tool {
     this.#cache = options.cache;
   }
 
+  hasCommand(name: string): boolean {
+    for (const b of this.#bundles) {
+      if (b.manifest.commands.some((c) => c.name === name)) return true;
+    }
+    return false;
+  }
+
   async run(input: Record<string, unknown>, _ctx: ToolContext): Promise<unknown> {
     const workspace = (_ctx as any).workspace as Workspace | undefined;
     if (!workspace) throw new Error("Command: workspace is required in ToolContext");

@@ -49,6 +49,8 @@ async function tokenToWords(tok: WordToken, env: Record<string, string>, workspa
   if (tok.quote === "single") return [raw];
   const withVars = expandVars(raw, env);
   if (tok.quote !== "none") return [withVars];
+  // POSIX-ish behavior: empty unquoted expansions produce no word.
+  if (withVars === "") return [];
   return expandGlob(withVars, workspace, cwd);
 }
 
