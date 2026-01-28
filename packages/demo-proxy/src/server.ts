@@ -1,6 +1,9 @@
 import type { IncomingMessage } from "node:http";
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { join, normalize, sep } from "node:path";
 import { Readable } from "node:stream";
+import { fileURLToPath } from "node:url";
 
 export type ProxyServerOptions = {
   apiKey: string;
@@ -20,7 +23,7 @@ export type ProxyServer = {
 
 function setCors(res: import("node:http").ServerResponse): void {
   res.setHeader("access-control-allow-origin", "*");
-  res.setHeader("access-control-allow-methods", "POST, OPTIONS");
+  res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
   res.setHeader("access-control-allow-headers", "content-type, authorization");
   res.setHeader("access-control-max-age", "86400");
 }
@@ -29,6 +32,29 @@ async function readBody(req: IncomingMessage): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   for await (const chunk of req) chunks.push(chunk as any);
   return Buffer.concat(chunks);
+}
+
+function repoRootFromHere(): string {
+  const here = fileURLToPath(new URL(".", import.meta.url));
+  return join(here, "..", "..", "..");
+}
+
+function bundlesRoot(): string {
+  // Prefer a future "official bundles" directory if present; fall back to the current sample bundles.
+  return join(repoRootFromHere(), "packages", "bundles", "sample", "bundles");
+}
+
+function isSafeBundlesPath(urlPath: string): boolean {
+  if (!urlPath.startsWith("/bundles/")) return false;
+  if (urlPath.includes("..")) return false;
+  if (urlPath.includes("\\")) return false;
+  return true;
+}
+
+function contentTypeForPath(path: string): string {
+  if (path.endsWith(".json")) return "application/json";
+  if (path.endsWith(".wasm")) return "application/wasm";
+  return "application/octet-stream";
 }
 
 export function createProxyHandler(options: ProxyServerOptions): (req: IncomingMessage, res: import("node:http").ServerResponse) => void {
@@ -45,6 +71,32 @@ export function createProxyHandler(options: ProxyServerOptions): (req: IncomingM
       if (req.method === "OPTIONS") {
         res.statusCode = 204;
         res.end();
+        return;
+      }
+
+      const urlPath = String(req.url ?? "").split("?")[0] ?? "";
+      if (req.method === "GET" && urlPath.startsWith("/bundles/")) {
+        if (!isSafeBundlesPath(urlPath)) {
+          res.statusCode = 400;
+          res.end("invalid bundles path");
+          return;
+        }
+        const rel = urlPath.replace(/^\/bundles\//, "");
+        const full = normalize(join(bundlesRoot(), rel));
+        if (!full.startsWith(normalize(bundlesRoot()) + sep) && full !== normalize(bundlesRoot())) {
+          res.statusCode = 400;
+          res.end("invalid bundles path");
+          return;
+        }
+        try {
+          const bytes = await readFile(full);
+          res.statusCode = 200;
+          res.setHeader("content-type", contentTypeForPath(full));
+          res.end(bytes);
+        } catch {
+          res.statusCode = 404;
+          res.end("not found");
+        }
         return;
       }
 
