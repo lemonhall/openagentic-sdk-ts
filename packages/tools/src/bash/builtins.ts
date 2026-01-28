@@ -179,6 +179,43 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
     return { exitCode: ok ? 0 : 1, stdout: "", stderr: "" };
   }
 
+  if (cmd === "export") {
+    if (args.length === 0) return { exitCode: 0, stdout: "", stderr: "" };
+    let ok = true;
+    for (const a0 of args) {
+      const eq = a0.indexOf("=");
+      if (eq === -1) {
+        if (!isVarName(a0)) {
+          ok = false;
+          continue;
+        }
+        io.env[a0] = io.env[a0] ?? "";
+        continue;
+      }
+      const name = a0.slice(0, eq);
+      const value = a0.slice(eq + 1);
+      if (!isVarName(name)) {
+        ok = false;
+        continue;
+      }
+      io.env[name] = value;
+    }
+    return { exitCode: ok ? 0 : 1, stdout: "", stderr: "" };
+  }
+
+  if (cmd === "unset") {
+    if (args.length === 0) return { exitCode: 0, stdout: "", stderr: "" };
+    let ok = true;
+    for (const n of args) {
+      if (!isVarName(n)) {
+        ok = false;
+        continue;
+      }
+      delete io.env[n];
+    }
+    return { exitCode: ok ? 0 : 1, stdout: "", stderr: "" };
+  }
+
   if (cmd === "date") {
     if (args.length > 0) return { exitCode: 2, stdout: "", stderr: "date: flags not supported (v10: add format support)" };
     return { exitCode: 0, stdout: `${isoDateFromEnv(io.env)}\n`, stderr: "" };

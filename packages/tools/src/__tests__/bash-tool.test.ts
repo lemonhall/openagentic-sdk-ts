@@ -246,6 +246,20 @@ describe("BashTool (workspace-native)", () => {
     expect(out.stderr).toBe("");
     expect(out.stdout).toBe("ok\nok\nok\nok\nok\n");
   });
+
+  it("supports export and unset builtins", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "export FOO=bar; echo $FOO; unset FOO; echo $FOO" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stderr).toBe("");
+    expect(out.stdout).toBe("bar\n\n");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {
