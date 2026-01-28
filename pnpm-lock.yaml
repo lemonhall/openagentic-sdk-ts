@@ -99,6 +99,9 @@ importers:
       '@openagentic/sdk-core':
         specifier: workspace:*
         version: link:../core
+      '@openagentic/sdk-web':
+        specifier: workspace:*
+        version: link:../web
       '@openagentic/tools':
         specifier: workspace:*
         version: link:../tools
@@ -109,6 +112,9 @@ importers:
         specifier: workspace:*
         version: link:../workspace
     devDependencies:
+      fake-indexeddb:
+        specifier: ^6.1.0
+        version: 6.2.5
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

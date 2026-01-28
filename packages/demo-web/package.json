@@ -7,6 +7,7 @@
     "@openagentic/bundles": "workspace:*",
     "@openagentic/providers-openai": "workspace:*",
     "@openagentic/sdk-core": "workspace:*",
+    "@openagentic/sdk-web": "workspace:*",
     "@openagentic/tools": "workspace:*",
     "@openagentic/wasi-runner-web": "workspace:*",
     "@openagentic/workspace": "workspace:*"
@@ -18,6 +19,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.1.0",
     "typescript": "^5.7.3",
     "vite": "^5.4.11",
     "vitest": "^2.1.9"

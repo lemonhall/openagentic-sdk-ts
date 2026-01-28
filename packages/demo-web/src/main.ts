@@ -1,4 +1,3 @@
-import { JsonlSessionStore } from "@openagentic/sdk-core";
 import type { Snapshot, WorkspaceEntry } from "@openagentic/workspace";
 import {
   OpfsWorkspace,
@@ -14,24 +13,9 @@ import { clearDirectoryHandle } from "./fs-utils.js";
 import { shouldSubmitOnKeydown } from "./composer.js";
 import { reduceChatState } from "./state.js";
 import { iconKindForEntry, iconSvgForKind } from "./file-icons.js";
+import { createDemoSessionStore } from "./session-store.js";
 
 import "./styles.css";
-
-class MemoryJsonlBackend {
-  #files = new Map<string, string>();
-  async mkdirp(_dir: string): Promise<void> {}
-  async readText(path: string): Promise<string> {
-    const v = this.#files.get(path);
-    if (v == null) throw new Error("ENOENT");
-    return v;
-  }
-  async writeText(path: string, text: string): Promise<void> {
-    this.#files.set(path, text);
-  }
-  async appendText(path: string, text: string): Promise<void> {
-    this.#files.set(path, (this.#files.get(path) ?? "") + text);
-  }
-}
 
 async function main(): Promise<void> {
   const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -97,7 +81,7 @@ async function main(): Promise<void> {
   let state = { messages: [] as Array<{ role: "user" | "assistant"; text: string; streaming?: boolean }> };
   let realDirHandle: FileSystemDirectoryHandle | null = null;
 
-  const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
+  const sessionStore = createDemoSessionStore();
 
   const OPFS_DIR = "openagentic-demo-web";
 

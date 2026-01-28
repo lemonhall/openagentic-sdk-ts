@@ -45,6 +45,7 @@ Open the URL printed by Vite.
 - Click “Import → OPFS” to copy it into the OPFS shadow workspace.
 - Run prompts in the chat; tools operate on OPFS, not your real folder.
 - Click “Commit → Real” to write OPFS changes back to the selected folder.
+- Sessions are stored as JSONL events in a durable browser store (reload-safe).
 
 ## WASI-backed `Bash` (preview)
 
