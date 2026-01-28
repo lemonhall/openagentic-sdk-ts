@@ -6,6 +6,7 @@ export type ShellExecOptions = {
   env?: Record<string, string>;
   cwd?: string;
   stdin?: string;
+  lastExitCode?: number;
 };
 
 export type ShellExecResult = {
@@ -18,8 +19,31 @@ export type ShellCommandResult = ShellExecResult & { cwd?: string };
 
 export type ShellCommandRunner = (argv: string[], io: { env: Record<string, string>; cwd: string; stdin?: string }, deps: { workspace: Workspace }) => Promise<ShellCommandResult>;
 
-function expandVars(token: string, env: Record<string, string>): string {
-  return token.replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (_m, name) => env[name] ?? "");
+function expandVars(token: string, env: Record<string, string>, lastExitCode: number): string {
+  let out = "";
+  for (let i = 0; i < token.length; i++) {
+    const c = token[i]!;
+    if (c !== "$") {
+      out += c;
+      continue;
+    }
+    const next = token[i + 1];
+    if (next === "?") {
+      out += String(lastExitCode);
+      i++;
+      continue;
+    }
+    if (next && /[A-Za-z_]/.test(next)) {
+      let j = i + 1;
+      while (j < token.length && /[A-Za-z0-9_]/.test(token[j]!)) j++;
+      const name = token.slice(i + 1, j);
+      out += env[name] ?? "";
+      i = j - 1;
+      continue;
+    }
+    out += "$";
+  }
+  return out;
 }
 
 function wildcardMatch(pattern: string, name: string): boolean {
@@ -45,20 +69,32 @@ async function expandGlob(token: string, workspace: Workspace, cwd: string): Pro
   return matches;
 }
 
-async function tokenToWords(tok: WordToken, env: Record<string, string>, workspace: Workspace, cwd: string): Promise<string[]> {
+async function tokenToWords(
+  tok: WordToken,
+  env: Record<string, string>,
+  workspace: Workspace,
+  cwd: string,
+  lastExitCode: number,
+): Promise<string[]> {
   const raw = tok.value;
   if (tok.quote === "single") return [raw];
-  const withVars = expandVars(raw, env);
+  const withVars = expandVars(raw, env, lastExitCode);
   if (tok.quote !== "none") return [withVars];
   // POSIX-ish behavior: empty unquoted expansions produce no word.
   if (withVars === "") return [];
   return expandGlob(withVars, workspace, cwd);
 }
 
-async function tokensToArgv(tokens: WordToken[], env: Record<string, string>, workspace: Workspace, cwd: string): Promise<string[]> {
+async function tokensToArgv(
+  tokens: WordToken[],
+  env: Record<string, string>,
+  workspace: Workspace,
+  cwd: string,
+  lastExitCode: number,
+): Promise<string[]> {
   const out: string[] = [];
   for (const t of tokens) {
-    const expanded = await tokenToWords(t, env, workspace, cwd);
+    const expanded = await tokenToWords(t, env, workspace, cwd, lastExitCode);
     out.push(...expanded);
   }
   return out;
@@ -70,7 +106,7 @@ export async function execSequence(
   deps: { runCommand: ShellCommandRunner; workspace: Workspace },
 ): Promise<ShellExecResult> {
   const env = opts.env ?? {};
-  const state = { cwd: opts.cwd ?? "" };
+  const state = { cwd: opts.cwd ?? "", lastExitCode: opts.lastExitCode ?? 0 };
   const { runCommand, workspace } = deps;
 
   const runPipeline = async (pipeline: PipelineNode): Promise<ShellExecResult> => {
@@ -87,23 +123,28 @@ export async function execSequence(
           // Apply redirects for the subshell "command".
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
-            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd);
+            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode);
             const bytes = await workspace.readFile(p0);
             stdin = new TextDecoder().decode(bytes);
           }
 
-          const out = await execSequence(cmd.subshell, { env, cwd: state.cwd, stdin }, { runCommand, workspace });
+          const out = await execSequence(
+            cmd.subshell,
+            { env, cwd: state.cwd, stdin, lastExitCode: state.lastExitCode },
+            { runCommand, workspace },
+          );
           lastExit = Number(out.exitCode ?? 0);
           lastStdout = String(out.stdout ?? "");
           lastStderr = String(out.stderr ?? "");
           stdin = lastStdout;
+          state.lastExitCode = lastExit;
         } else {
-          const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd);
+          const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd, state.lastExitCode);
 
           // Apply input redirection on first command only (v1 simplification).
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
-            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd);
+            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode);
             const bytes = await workspace.readFile(p0);
             stdin = new TextDecoder().decode(bytes);
           }
@@ -114,12 +155,14 @@ export async function execSequence(
           lastStderr = String(out.stderr ?? "");
           if (typeof out.cwd === "string") state.cwd = out.cwd;
           stdin = lastStdout;
+          state.lastExitCode = lastExit;
         }
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         lastExit = 127;
         lastStdout = "";
         lastStderr = err.message;
+        state.lastExitCode = lastExit;
         // If a pipeline step fails to start (e.g., unknown command), stop the pipeline.
         break;
       }
@@ -129,7 +172,7 @@ export async function execSequence(
     const last = pipeline.commands.at(-1)!;
     for (const r of last.redirs) {
       if (r.kind !== "out" && r.kind !== "append") continue;
-      const [p0] = await tokenToWords(r.path, env, workspace, state.cwd);
+      const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode);
       const data = new TextEncoder().encode(lastStdout);
       if (r.kind === "append") {
         const existing = await workspace.readFile(p0).catch(() => new Uint8Array());
@@ -165,6 +208,7 @@ export async function execSequence(
     stdout += out.stdout;
     stderr += out.stderr;
     exitCode = out.exitCode;
+    state.lastExitCode = out.exitCode;
   }
 
   return { exitCode, stdout, stderr };
