@@ -26,6 +26,7 @@ import { InProcessWasiRunner } from "@openagentic/wasi-runner-web";
 import { WasmtimeWasiRunner, createBubblewrapProcessSandbox } from "@openagentic/wasi-runner-wasmtime";
 import { BubblewrapNativeRunner } from "@openagentic/native-runner";
 import type { NativeRunner } from "@openagentic/native-runner";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,6 +41,7 @@ export type CreateDemoRuntimeOptions = {
   systemPrompt?: string;
   maxSteps?: number;
   enableWasiBash?: boolean;
+  enableWasiPython?: boolean;
   enableWasiNetFetch?: boolean;
   wasiPreopenDir?: string;
   toolEngine?: "wasi" | "native";
@@ -53,6 +55,16 @@ function repoRootFromHere(): string {
 
 function sampleBundleRoot(): string {
   return join(repoRootFromHere(), "packages", "bundles", "sample");
+}
+
+function officialBundleRoot(): string {
+  return join(repoRootFromHere(), "packages", "bundles", "official");
+}
+
+function defaultBundleRoot(): string {
+  const official = officialBundleRoot();
+  if (existsSync(join(official, "bundles"))) return official;
+  return sampleBundleRoot();
 }
 
 function fileCache(rootDir: string): BundleCache {
@@ -156,8 +168,18 @@ async function installSampleCoreUtils(rootDir: string, cache: BundleCache): Prom
   return installBundle("core-utils", "0.0.0", { registry: sampleRegistry(rootDir), cache, requireSignature: true });
 }
 
+function preferredLangPythonVersion(rootDir: string): string {
+  const v = "0.1.0";
+  const manifest = join(rootDir, "bundles", "lang-python", v, "manifest.json");
+  return existsSync(manifest) ? v : "0.0.0";
+}
+
 async function installSampleLangPython(rootDir: string, cache: BundleCache): Promise<InstalledBundle> {
-  return installBundle("lang-python", "0.0.0", { registry: sampleRegistry(rootDir), cache, requireSignature: true });
+  return installBundle("lang-python", preferredLangPythonVersion(rootDir), {
+    registry: sampleRegistry(rootDir),
+    cache,
+    requireSignature: true,
+  });
 }
 
 export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Promise<{
@@ -168,6 +190,7 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
 }> {
   const toolEngine = options.toolEngine ?? ((process.env.OPENAGENTIC_TOOL_ENGINE as any) || "wasi");
   const enableWasiBash = toolEngine !== "native" && options.enableWasiBash !== false;
+  const enableWasiPython = Boolean(options.enableWasiPython ?? (process.env.OPENAGENTIC_WASI_PYTHON === "1"));
   const enableWasiNetFetch = Boolean(options.enableWasiNetFetch ?? (process.env.OPENAGENTIC_WASI_NETFETCH === "1"));
 
   const tools = new ToolRegistry();
@@ -206,15 +229,16 @@ export async function createDemoRuntime(options: CreateDemoRuntimeOptions): Prom
 
     tools.register(new NativeBashTool({ runner }));
   } else if (enableWasiBash) {
-    const root = sampleBundleRoot();
+    const root = defaultBundleRoot();
     const cache = fileCache(root);
     const coreUtils = await installSampleCoreUtils(root, cache);
-    const langPython = await installSampleLangPython(root, cache);
+    const bundles = [coreUtils];
+    if (enableWasiPython) bundles.push(await installSampleLangPython(root, cache));
     const runnerKind = chooseNodeWasiRunnerKind({ enableWasiNetFetch, wasmtimeAvailable: hasWasmtime() });
     const runner = runnerKind === "wasmtime" ? new WasmtimeWasiRunner({ processSandbox: demoProcessSandbox() }) : new InProcessWasiRunner();
-    const command = new CommandTool({ runner, bundles: [coreUtils, langPython], cache });
+    const command = new CommandTool({ runner, bundles, cache });
     tools.register(new BashTool({ wasiCommand: command }));
-    tools.register(new PythonTool({ command }));
+    if (enableWasiPython) tools.register(new PythonTool({ command }));
   } else {
     tools.register(new BashTool());
   }

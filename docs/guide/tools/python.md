@@ -19,5 +19,9 @@
 ## Notes
 
 - The demo `lang-python` bundle ships a **minimal** WASI runtime intended for demos and tests.
-  - Currently supported subset: `python -c "print(<int expr>)"` where `<int expr>` uses digits and `+ - * /` (no full CPython/MicroPython semantics).
+  - Currently supported subset:
+    - `python -c "print(<int expr>)"` where `<int expr>` uses digits and `+ - * /`
+    - `python -c "print('literal')"` / `python -c "print(\"literal\")"` (no escapes)
+    - (no full CPython/MicroPython semantics)
   - Production use should swap this for a real MicroPython/CPython WASI runtime bundle with a clear packaging policy.
+- In the demos, this tool is intentionally **opt-in** (web UI: “WASI Python (stub)”; Node: `--wasi-python`) to avoid implying full Python semantics by default.

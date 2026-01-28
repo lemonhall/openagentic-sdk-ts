@@ -64,10 +64,12 @@ async function main() {
   const here = dirname(fileURLToPath(import.meta.url));
   const repoRoot = join(here, "..", "..", "..");
   const sampleRoot = join(repoRoot, "packages", "bundles", "sample");
+  const officialRoot = join(repoRoot, "packages", "bundles", "official");
   const webPublicRoot = join(repoRoot, "packages", "demo-web", "public");
 
   const version = "0.0.0";
   const bundleRoot = join(sampleRoot, "bundles", "core-utils", version);
+  const officialBundleRoot = join(officialRoot, "bundles", "core-utils", version);
   const webBundleRoot = join(webPublicRoot, "bundles", "core-utils", version);
   const watRoot = join(sampleRoot, "wat");
 
@@ -90,6 +92,7 @@ async function main() {
   for (const c of commands) {
     const bytes = await compileWat(c.wat);
     await writeBytes(c.wasm, bytes);
+    await writeBytes(join(officialBundleRoot, `${c.name}.wasm`), bytes);
     await writeBytes(join(webBundleRoot, `${c.name}.wasm`), bytes);
     assets.push({
       path: `${c.name}.wasm`,
@@ -116,14 +119,17 @@ async function main() {
 
   const manifestJson = JSON.stringify(manifest, null, 2) + "\n";
   await writeFile(join(bundleRoot, "manifest.json"), manifestJson, "utf8");
+  await writeFile(join(officialBundleRoot, "manifest.json"), manifestJson, "utf8");
   await writeFile(join(webBundleRoot, "manifest.json"), manifestJson, "utf8");
 
   // --- lang-python (placeholder runtime; v4 wiring) ---
   {
     const pyBundleRoot = join(sampleRoot, "bundles", "lang-python", version);
+    const pyOfficialBundleRoot = join(officialRoot, "bundles", "lang-python", version);
     const pyWebBundleRoot = join(webPublicRoot, "bundles", "lang-python", version);
     const pyBytes = await compileWat(join(watRoot, "python.wat"));
     await writeBytes(join(pyBundleRoot, "python.wasm"), pyBytes);
+    await writeBytes(join(pyOfficialBundleRoot, "python.wasm"), pyBytes);
     await writeBytes(join(pyWebBundleRoot, "python.wasm"), pyBytes);
 
     const pyUnsigned = {
@@ -150,11 +156,12 @@ async function main() {
 
     const pyManifestJson = JSON.stringify(pyManifest, null, 2) + "\n";
     await writeFile(join(pyBundleRoot, "manifest.json"), pyManifestJson, "utf8");
+    await writeFile(join(pyOfficialBundleRoot, "manifest.json"), pyManifestJson, "utf8");
     await writeFile(join(pyWebBundleRoot, "manifest.json"), pyManifestJson, "utf8");
   }
 
   // eslint-disable-next-line no-console
-  console.log(`Wrote sample bundles to ${sampleRoot}/bundles (and demo-web/public/bundles)`);
+  console.log(`Wrote bundles to ${sampleRoot}/bundles, ${officialRoot}/bundles, and demo-web/public/bundles`);
 }
 
 await main();

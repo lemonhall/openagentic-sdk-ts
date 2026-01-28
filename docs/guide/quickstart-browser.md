@@ -58,4 +58,8 @@ By default, the demo derives the **bundles base URL** from the proxy URL:
 
 Bundle manifests are verified (signature + sha256) before use.
 
+## WASI-backed `Python` (stub)
+
+The web demo also includes an opt-in “WASI Python (stub)” toggle. This uses the `lang-python@0.0.0` demo bundle and is **not** full CPython/MicroPython semantics.
+
 Note: `WebSearch` requires a server-side `TAVILY_API_KEY` and is not enabled in the browser demo by default.

@@ -56,6 +56,7 @@ describe("demo-web WASI Python", () => {
         provider: new FakeProvider() as any,
         model: "fake-model",
         enableWasiBash: true,
+        enableWasiPython: true,
         wasiBundleBaseUrl: "http://local",
       } as any);
 
@@ -63,9 +64,12 @@ describe("demo-web WASI Python", () => {
       const out = (await py.run({ code: "print(1+1)" }, { sessionId: "s", toolUseId: "t", workspace } as any)) as any;
       expect(out.exitCode).toBe(0);
       expect(out.stdout).toBe("2\n");
+
+      const out2 = (await py.run({ code: 'print("hi")' }, { sessionId: "s", toolUseId: "t2", workspace } as any)) as any;
+      expect(out2.exitCode).toBe(0);
+      expect(out2.stdout).toBe("hi\n");
     } finally {
       globalThis.fetch = origFetch;
     }
   });
 });
-

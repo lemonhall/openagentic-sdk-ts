@@ -45,6 +45,10 @@ async function main(): Promise<void> {
           <span>WASI Bash</span>
         </label>
         <label class="oaToggle">
+          <input id="wasiPython" type="checkbox" />
+          <span>WASI Python (stub)</span>
+        </label>
+        <label class="oaToggle">
           <input id="wasiNetFetch" type="checkbox" />
           <span>WASI netFetch</span>
         </label>
@@ -103,6 +107,7 @@ async function main(): Promise<void> {
   const proxyUrlEl = document.querySelector<HTMLInputElement>("#proxyUrl")!;
   const modelEl = document.querySelector<HTMLInputElement>("#model")!;
   const wasiBashEl = document.querySelector<HTMLInputElement>("#wasiBash")!;
+  const wasiPythonEl = document.querySelector<HTMLInputElement>("#wasiPython")!;
   const wasiNetFetchEl = document.querySelector<HTMLInputElement>("#wasiNetFetch")!;
   const statusEl = document.querySelector<HTMLDivElement>("#status")!;
   const transcriptEl = document.querySelector<HTMLDivElement>("#transcript")!;
@@ -361,6 +366,7 @@ async function main(): Promise<void> {
         model: modelEl.value.trim() || "gpt-5.2",
         providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
         enableWasiBash: wasiBashEl.checked,
+        enableWasiPython: wasiPythonEl.checked,
         enableWasiNetFetch: wasiNetFetchEl.checked,
         wasiBundleBaseUrl: defaultBundleBaseUrlFromProxy(proxyUrlEl.value),
         wasiPreopenDir: OPFS_DIR,

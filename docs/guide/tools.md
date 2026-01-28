@@ -20,6 +20,10 @@ For a full per-tool reference (inputs/outputs/examples), see: `docs/guide/tools/
 - `SlashCommand` — load `.claude/commands/<name>.md` from the shadow workspace
 - `Skill` — load a built-in skill by name
 
+## Optional (opt-in)
+
+- `Python` — run Python code in a WASI runtime bundle (currently a minimal demo/stub bundle; opt-in in demos)
+
 Node demo only (requires a server-side key):
 
 - `WebSearch` — Tavily web search (requires `TAVILY_API_KEY`)

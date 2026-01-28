@@ -32,6 +32,7 @@ export type CreateBrowserAgentOptions = {
   model: string;
   systemPrompt?: string;
   enableWasiBash?: boolean;
+  enableWasiPython?: boolean;
   enableWasiNetFetch?: boolean;
   wasiBundleBaseUrl?: string;
   wasiPreopenDir?: string;
@@ -58,7 +59,19 @@ async function installCoreUtilsBundle(options: { wasiBundleBaseUrl?: string; cac
 
 async function installLangPythonBundle(options: { wasiBundleBaseUrl?: string; cache: BundleCache }): Promise<InstalledBundle> {
   const registry = createRegistryClient(options.wasiBundleBaseUrl ?? "", { isOfficial: true });
-  return installBundle("lang-python", "0.0.0", { registry, cache: options.cache, requireSignature: true });
+  const versions = ["0.1.0", "0.0.0"];
+  let lastErr: unknown = null;
+  for (const version of versions) {
+    try {
+      return await installBundle("lang-python", version, { registry, cache: options.cache, requireSignature: true });
+    } catch (e) {
+      lastErr = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      const isNotFound = msg.includes("HTTP 404") || msg.includes("ENOENT");
+      if (!isNotFound) throw e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr ?? "failed to install lang-python bundle"));
 }
 
 let sharedWasiRunner: WasiRunner | null = null;
@@ -100,10 +113,13 @@ export async function createBrowserAgent(options: CreateBrowserAgentOptions): Pr
   if (options.enableWasiBash) {
     const cache = createBrowserBundleCache();
     const coreUtils = await installCoreUtilsBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
-    const langPython = await installLangPythonBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache });
-    const command = new CommandTool({ runner: getBrowserWasiRunner(), bundles: [coreUtils, langPython], cache });
+    const bundles = [coreUtils];
+    if (options.enableWasiPython) {
+      bundles.push(await installLangPythonBundle({ wasiBundleBaseUrl: options.wasiBundleBaseUrl, cache }));
+    }
+    const command = new CommandTool({ runner: getBrowserWasiRunner(), bundles, cache });
     tools.register(new BashTool({ wasiCommand: command }));
-    tools.register(new PythonTool({ command }));
+    if (options.enableWasiPython) tools.register(new PythonTool({ command }));
   } else {
     tools.register(new BashTool());
   }

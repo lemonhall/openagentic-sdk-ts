@@ -121,6 +121,22 @@ describe("demo-node runtime wiring", () => {
     )) as any;
 
     expect(out.stdout).toBe("hi\n");
+    expect(tools.names()).not.toContain("Python");
+  });
+
+  it("can enable WASI-backed Python (stub)", async () => {
+    const createDemoRuntime = (runtimeMod as any).createDemoRuntime as
+      | ((opts: any) => Promise<{ tools: any }>)
+      | undefined;
+    expect(typeof createDemoRuntime).toBe("function");
+    if (typeof createDemoRuntime !== "function") return;
+
+    const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
+    const workspace = new MemoryWorkspace();
+    const provider = new FakeProvider() as any;
+
+    const { tools } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model", enableWasiPython: true });
+    expect(tools.names()).toContain("Python");
   });
 
   it("can enable native engine Bash (no bundles)", async () => {

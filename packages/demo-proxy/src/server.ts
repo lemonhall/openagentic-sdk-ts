@@ -1,5 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import { createServer } from "node:http";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, normalize, sep } from "node:path";
 import { Readable } from "node:stream";
@@ -40,7 +41,10 @@ function repoRootFromHere(): string {
 }
 
 function bundlesRoot(): string {
-  // Prefer a future "official bundles" directory if present; fall back to the current sample bundles.
+  // Prefer official bundles if present; fall back to the dev sample bundles.
+  const official = join(repoRootFromHere(), "packages", "bundles", "official", "bundles");
+  if (existsSync(official)) return official;
+
   return join(repoRootFromHere(), "packages", "bundles", "sample", "bundles");
 }
 
@@ -63,6 +67,8 @@ export function createProxyHandler(options: ProxyServerOptions): (req: IncomingM
 
   const upstreamBaseUrl = (options.upstreamBaseUrl ?? "https://api.openai.com/v1").replace(/\/+$/, "");
   const upstreamUrl = `${upstreamBaseUrl}/responses`;
+  const bundlesRootDir = bundlesRoot();
+  const bundlesRootNorm = normalize(bundlesRootDir);
 
   return async (req, res) => {
     try {
@@ -82,8 +88,8 @@ export function createProxyHandler(options: ProxyServerOptions): (req: IncomingM
           return;
         }
         const rel = urlPath.replace(/^\/bundles\//, "");
-        const full = normalize(join(bundlesRoot(), rel));
-        if (!full.startsWith(normalize(bundlesRoot()) + sep) && full !== normalize(bundlesRoot())) {
+        const full = normalize(join(bundlesRootDir, rel));
+        if (!full.startsWith(bundlesRootNorm + sep) && full !== bundlesRootNorm) {
           res.statusCode = 400;
           res.end("invalid bundles path");
           return;

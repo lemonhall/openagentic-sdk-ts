@@ -30,6 +30,14 @@ The Node demo enables the WASI-backed `Bash` tool by default (using signed bundl
 OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . --no-wasi
 ```
 
+### WASI-backed `Python` (stub)
+
+The repo ships a **minimal** `lang-python@0.0.0` demo bundle (not full Python semantics). It is opt-in:
+
+```bash
+OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . --wasi-python
+```
+
 ### OpenAI-compatible providers (custom base URL)
 
 If your provider uses a non-OpenAI domain but is API-compatible, set `OPENAI_BASE_URL` (must include `/v1`):

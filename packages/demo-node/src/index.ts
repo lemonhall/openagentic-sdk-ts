@@ -48,6 +48,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
   const projectDir = getFlagValue(argv, "--project");
   const once = getFlagValue(argv, "--once");
   const enableWasiBash = !argv.includes("--no-wasi");
+  const enableWasiPython = argv.includes("--wasi-python") || process.env.OPENAGENTIC_WASI_PYTHON === "1";
   const enableWasiNetFetch = argv.includes("--wasi-netfetch");
   if (once != null) {
     const injectedProvider = deps.provider as ModelProvider | undefined;
@@ -95,6 +96,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
       apiKey,
       systemPrompt: deps.systemPrompt,
       enableWasiBash,
+      enableWasiPython,
       enableWasiNetFetch,
       wasiPreopenDir,
     });
@@ -158,6 +160,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
     apiKey,
     systemPrompt: deps.systemPrompt,
     enableWasiBash,
+    enableWasiPython,
     enableWasiNetFetch,
     wasiPreopenDir,
   });

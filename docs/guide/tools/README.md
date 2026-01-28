@@ -27,7 +27,7 @@ See: `bash.md`
 
 See: `python.md`
 
-- `Python` — run Python code in a WASI runtime bundle
+- `Python` — run Python code in a WASI runtime bundle (currently a minimal demo bundle; opt-in in demos)
 
 ## Web Tools
 

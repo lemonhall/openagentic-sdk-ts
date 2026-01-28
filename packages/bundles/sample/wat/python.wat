@@ -107,8 +107,10 @@
   )
 
   ;; Minimal "python -c" runtime for agent demos:
-  ;; - supports: python -c "print(<int expr>)"
-  ;; - expr supports: digits, + - * /, whitespace
+  ;; - supports:
+  ;;   - python -c "print(<int expr>)"
+  ;;   - python -c "print('<string>')" / python -c 'print("<string>")' (no escapes)
+  ;; - int expr supports: digits, + - * /, whitespace
   (func (export "_start")
     (local $argc i32)
     (local $flag i32)
@@ -121,6 +123,9 @@
     (local $op i32)
     (local $out_ptr i32)
     (local $out_len i32)
+    (local $q i32)
+    (local $start i32)
+    (local $slen i32)
 
     (call $args_sizes_get (i32.const 900) (i32.const 904))
     drop
@@ -151,6 +156,46 @@
     (if (i32.ne (i32.load8_u (local.get $p)) (i32.const 40)) (then (call $proc_exit (i32.const 2)))) ;; '('
     (local.set $p (i32.add (local.get $p) (i32.const 1)))
     (local.set $p (call $skip_ws (local.get $p)))
+
+    ;; fast-path: print("...") / print('...') (no escapes)
+    (local.set $b (i32.load8_u (local.get $p)))
+    (if
+      (i32.or
+        (i32.eq (local.get $b) (i32.const 34)) ;; '"'
+        (i32.eq (local.get $b) (i32.const 39)) ;; '\''
+      )
+      (then
+        (local.set $q (local.get $b))
+        (local.set $p (i32.add (local.get $p) (i32.const 1)))
+        (local.set $start (local.get $p))
+
+        (block $str_done
+          (loop $str_loop
+            (local.set $b (i32.load8_u (local.get $p)))
+            (if (i32.eqz (local.get $b)) (then (call $proc_exit (i32.const 2))))
+            (br_if $str_done (i32.eq (local.get $b) (local.get $q)))
+            (local.set $p (i32.add (local.get $p) (i32.const 1)))
+            (br $str_loop)
+          )
+        )
+
+        (local.set $slen (i32.sub (local.get $p) (local.get $start)))
+        (local.set $p (i32.add (local.get $p) (i32.const 1))) ;; skip closing quote
+        (local.set $p (call $skip_ws (local.get $p)))
+        (if (i32.ne (i32.load8_u (local.get $p)) (i32.const 41)) (then (call $proc_exit (i32.const 2)))) ;; ')'
+
+        ;; iovec[0] = string
+        (i32.store (i32.const 32) (local.get $start))
+        (i32.store (i32.const 36) (local.get $slen))
+        ;; iovec[1] = "\\n"
+        (i32.store (i32.const 40) (i32.const 1024))
+        (i32.store (i32.const 44) (i32.const 1))
+
+        (call $fd_write (i32.const 1) (i32.const 32) (i32.const 2) (i32.const 120))
+        drop
+        (call $proc_exit (i32.const 0))
+      )
+    )
 
     ;; parse first int
     (local.set $tmp (i32.const 920))
