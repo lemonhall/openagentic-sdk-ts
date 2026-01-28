@@ -103,4 +103,22 @@ describe("shell expansion (v10)", () => {
     });
     expect(res3.stdout).toBe("fallback\n");
   });
+
+  it("supports $(...) command substitution (captures stdout and trims trailing newline)", async () => {
+    const ws = new MemoryWorkspace();
+    const ast = parseScript("echo $(echo hi); echo x$(echo hi)y");
+
+    const res = await execSequence(ast, { env: {}, cwd: "" }, {
+      workspace: ws,
+      runCommand: async (argv) => {
+        const cmd = argv[0] ?? "";
+        const args = argv.slice(1);
+        if (cmd === "echo") return { exitCode: 0, stdout: `${args.join(" ")}\n`, stderr: "" };
+        throw new Error(`unknown command: ${cmd}`);
+      },
+    });
+
+    expect(res.exitCode).toBe(0);
+    expect(res.stdout).toBe("hi\nxhiy\n");
+  });
 });

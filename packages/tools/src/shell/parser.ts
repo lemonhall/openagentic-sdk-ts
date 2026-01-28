@@ -89,8 +89,51 @@ export function tokenize(script: string): Token[] {
     let hasSingle = false;
     let hasDouble = false;
 
+    const readCommandSubstitution = (): string => {
+      const start = i;
+      i += 2; // "$("
+      let depth = 1;
+      while (i < s.length && depth > 0) {
+        const ch = s[i]!;
+
+        if (ch === "'") {
+          i++; // opening '
+          while (i < s.length && s[i] !== "'") i++;
+          if (i >= s.length) throw new Error("Shell: unterminated command substitution");
+          i++; // closing '
+          continue;
+        }
+
+        if (ch === "\"") {
+          i++; // opening "
+          while (i < s.length && s[i] !== "\"") {
+            if (s[i] === "\\" && i + 1 < s.length) {
+              i += 2;
+              continue;
+            }
+            i++;
+          }
+          if (i >= s.length) throw new Error("Shell: unterminated command substitution");
+          i++; // closing "
+          continue;
+        }
+
+        if (ch === "(") depth++;
+        else if (ch === ")") depth--;
+        i++;
+      }
+      if (depth !== 0) throw new Error("Shell: unterminated command substitution");
+      return s.slice(start, i);
+    };
+
     while (i < s.length) {
       const c = s[i]!;
+
+      if (c === "$" && s[i + 1] === "(") {
+        buf += readCommandSubstitution();
+        hasUnquoted = true;
+        continue;
+      }
 
       if (c === " " || c === "\t" || c === "\r" || c === "\n") break;
       if (c === ";" || c === "(" || c === ")") break;

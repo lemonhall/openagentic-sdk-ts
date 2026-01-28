@@ -1,5 +1,6 @@
 import type { Workspace } from "@openagentic/workspace";
 
+import { parseScript } from "./parser.js";
 import type { PipelineNode, ScriptNode, SequenceNode, WordToken } from "./parser.js";
 
 export type ShellExecOptions = {
@@ -102,10 +103,42 @@ async function tokenToWords(
   workspace: Workspace,
   cwd: string,
   lastExitCode: number,
+  runCommand: ShellCommandRunner,
 ): Promise<string[]> {
   const raw = tok.value;
   if (tok.quote === "single") return [raw];
-  const withVars = expandVars(raw, env, lastExitCode);
+  let withVars = expandVars(raw, env, lastExitCode);
+
+  if (withVars.includes("$(")) {
+    let out = "";
+    for (let i = 0; i < withVars.length; i++) {
+      if (withVars[i] !== "$" || withVars[i + 1] !== "(") {
+        out += withVars[i]!;
+        continue;
+      }
+
+      const start = i + 2;
+      let j = start;
+      let depth = 1;
+      while (j < withVars.length && depth > 0) {
+        const c = withVars[j]!;
+        if (c === "(") depth++;
+        else if (c === ")") depth--;
+        j++;
+      }
+      if (depth !== 0) throw new Error("Shell: unterminated command substitution");
+
+      const inner = withVars.slice(start, j - 1);
+      const innerAst = parseScript(inner);
+      const innerRes = await execSequence(innerAst, { env, cwd, lastExitCode }, { runCommand, workspace });
+      const captured = String(innerRes.stdout ?? "").replace(/\r?\n$/, "");
+
+      out += captured;
+      i = j - 1;
+    }
+    withVars = out;
+  }
+
   if (tok.quote !== "none") return [withVars];
   // POSIX-ish behavior: empty unquoted expansions produce no word.
   if (withVars === "") return [];
@@ -118,10 +151,11 @@ async function tokensToArgv(
   workspace: Workspace,
   cwd: string,
   lastExitCode: number,
+  runCommand: ShellCommandRunner,
 ): Promise<string[]> {
   const out: string[] = [];
   for (const t of tokens) {
-    const expanded = await tokenToWords(t, env, workspace, cwd, lastExitCode);
+    const expanded = await tokenToWords(t, env, workspace, cwd, lastExitCode, runCommand);
     out.push(...expanded);
   }
   return out;
@@ -150,7 +184,7 @@ export async function execSequence(
           // Apply redirects for the subshell "command".
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
-            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode);
+            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode, runCommand);
             const bytes = await workspace.readFile(p0);
             stdin = new TextDecoder().decode(bytes);
           }
@@ -166,12 +200,12 @@ export async function execSequence(
           stdin = lastStdout;
           state.lastExitCode = lastExit;
         } else {
-          const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd, state.lastExitCode);
+          const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd, state.lastExitCode, runCommand);
 
           // Apply input redirection on first command only (v1 simplification).
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
-            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode);
+            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode, runCommand);
             const bytes = await workspace.readFile(p0);
             stdin = new TextDecoder().decode(bytes);
           }
@@ -199,7 +233,7 @@ export async function execSequence(
     const last = pipeline.commands.at(-1)!;
     for (const r of last.redirs) {
       if (r.kind !== "out" && r.kind !== "append") continue;
-      const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode);
+      const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode, runCommand);
       const data = new TextEncoder().encode(lastStdout);
       if (r.kind === "append") {
         const existing = await workspace.readFile(p0).catch(() => new Uint8Array());
