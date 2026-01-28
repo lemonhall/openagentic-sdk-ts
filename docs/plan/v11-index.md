@@ -7,20 +7,21 @@
 As of v10, we have a working “POSIX-ish” shell core:
 
 - Lexer/parser: quoting (`'`/`"`), escapes, comments, `;` sequencing, `&&`/`||`, pipelines, redirects, subshell grouping.
-- Expansion subset: `$var`, `${var}`, `${var:-default}`, `$?`, and `$(...)` command substitution (captured stdout; trims one trailing newline).
+- Expansion subset: `$var`, `${var}`, `${var:-default}`, `$?`, and `$(...)` command substitution (captured stdout; trims one trailing newline — POSIX strips all trailing newlines).
 - Redirect subset: `<`, `>`, `>>`, `2>`, `2>>`, `2>&1`, `1>&2` (with ordering).
-- Assignments: `FOO=bar cmd ...` and standalone `FOO=bar` (currently stored in a single env map).
-- A growing builtin/tool baseline (via `BashTool`): `:`/`true`/`false`, `echo`, `printf`, `test`/`[`, `cd`/`pwd`, `export`/`unset`, `command -v`, plus a pragmatic `date`/`uname`/`whoami`/`rg`.
+- Assignments: `FOO=bar cmd ...` and standalone `FOO=bar` (v10: treated as env; v11: split vars vs env).
+- A growing builtin/tool baseline (via `BashTool`): `:`/`true`/`false`, `echo`, `printf`, `test`/`[`, `cd`/`pwd`, `export`/`unset`, `set`/`shift`, `command -v`, plus pragmatic `date`/`uname`/`whoami`/`rg`, and now `head`/`find`.
 - Guardrails: a shell-compat fixture harness exists.
 
-However, we are still far from POSIX `sh` in the ways that break scripts:
+v11 focuses on the semantic gaps that change argv/control-flow in real scripts (vars vs env, IFS field splitting, positional params), and adds only minimal control plumbing (`exit`, `set -e`, `set -u`) to make those behaviors testable.
 
-1. **No field splitting**: unquoted expansions/command substitutions do not split on IFS, so argv differs from POSIX.
-2. **No shell variable map**: “variables” are treated as env; non-exported vars don’t exist as a concept.
-3. **No positional params**: `$1..$N`, `$#`, `$@`/`$*`, `set -- ...`, `shift` aren’t implemented.
-4. **No `exit` / `set -e` / `set -u` execution controls** (some scripts rely heavily on these).
+We are still far from POSIX `sh` overall. Major remaining gaps:
 
-v11 addresses (1)-(3) as the mandatory semantic core, and adds only the minimal control plumbing needed to test them reliably.
+- **Language constructs**: `if/then/else`, `case`, `for/while/until`, functions, `trap`, `.`/`source`, `read`, `eval`, `local`, `return`.
+- **Expansions/globbing**: pathname expansion (`* ? []`), arithmetic expansion/eval, full parameter expansion surface (`:=`, `:?`, `%`/`%%`, `#`/`##`, `${#var}`), all-trailing-newline trim for `$(...)`.
+- **Redirections**: heredocs (`<<`), fd juggling (`n<&`, `n>&`), `<>`, `>|`, etc.
+- **Jobs/process**: background `&`, `wait`, signals/job control.
+- **Utilities**: only a tiny subset exists; many scripts assume `sed`, `awk`, `cut`, `sort`, `tail`, `wc`, `xargs`, `env`, etc.
 
 ## v11 success criteria (hard)
 
@@ -51,3 +52,8 @@ Before starting (or resuming) v11 work:
 5. `v11-feature-04-exit-and-errexit-nounset.md`
 6. `v11-feature-05-compat-suite-v11.md`
 
+## Notes (living)
+
+- Extra v11 follow-ups landed outside the original v11 plan docs:
+  - `pwd` prints `.` at workspace root; added minimal `head` and `find` builtins (workspace-aware).
+  - Demo-web persists bundle assets in IndexedDB to reduce repeat `.wasm` fetches after reloads.
