@@ -77,7 +77,6 @@ export class BashTool implements Tool {
           "date",
           "uname",
           "whoami",
-          "rg",
           // baseline convenience builtins
           "echo",
           "printf",
