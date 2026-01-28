@@ -63,6 +63,9 @@ export class WasmtimeWasiRunner implements WasiRunner {
   async execModule(input: WasiExecInput): Promise<WasiExecResult> {
     if (input.module.kind !== "bytes") throw new Error("WasmtimeWasiRunner currently supports module.kind=bytes only");
     if (input.preopenDir && input.fs) throw new Error("WasmtimeWasiRunner: preopenDir and fs snapshot are mutually exclusive");
+    if (input.netFetch) {
+      throw new Error("WasmtimeWasiRunner: netFetch is not supported (wasmtime CLI runner)");
+    }
 
     const maxStdout = input.limits?.maxStdoutBytes ?? 1024 * 1024;
     const maxStderr = input.limits?.maxStderrBytes ?? 1024 * 1024;
