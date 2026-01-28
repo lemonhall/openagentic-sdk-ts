@@ -253,6 +253,19 @@ importers:
         specifier: ^1.0.37
         version: 1.0.39
 
+  packages/web:
+    dependencies:
+      '@openagentic/sdk-core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.7)
+
   packages/workspace:
     devDependencies:
       '@types/node':
