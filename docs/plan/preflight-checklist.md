@@ -23,9 +23,12 @@ If these fail, do not trust manual demo testing.
 
 In the demo-web UI (with WASI Bash enabled), verify:
 
+- `pwd` prints `.` at workspace root (and prints a workspace-relative path when `cwd` is set).
 - `date` prints a timestamp (built-in, deterministic if `SOURCE_DATE_EPOCH` is set by tests).
 - `rg -n hello .` works for workspace search (built-in wrapper today).
 - `cat somefile.txt` prints file contents.
+- `find . -maxdepth 2 -type f` returns some file paths (builtin).
+- `printf "a\\nb\\n" | head -n 1` prints `a` (builtin).
 
 If any of these are “unknown command” or print nothing, jump to “Known Failure Modes”.
 
@@ -43,6 +46,17 @@ Checks:
 - Ensure `packages/demo-web/vite.config.ts` still aliases tools source.
 - Ensure BashTool forces these builtins in WASI mode (`packages/tools/src/bash/bash.ts`).
 
+### A2) `pwd` prints a blank line
+
+Root cause:
+
+- Workspace-root `cwd` is represented as `""`, and `pwd` must render that as `.`.
+
+Checks:
+
+- Ensure demo-web is not running a stale `@openagentic/tools`.
+- Ensure `pwd` builtin returns `.` when `io.cwd === ""` (`packages/tools/src/bash/builtins.ts`).
+
 ### B) `cat a.txt` runs but prints nothing
 
 Root cause:
@@ -52,6 +66,17 @@ Root cause:
 Checks:
 
 - Ensure BashTool is forcing the builtin `cat` (workspace-aware) instead of the WASI applet.
+
+### B2) `find` / `head` says “unknown command”
+
+Root cause:
+
+- The WASI bundles may not ship these utilities; demo-web relies on `BashTool` builtins for them.
+
+Checks:
+
+- Ensure demo-web is not running a stale `@openagentic/tools`.
+- Ensure BashTool forces the builtin (`packages/tools/src/bash/bash.ts`).
 
 ### C) Every prompt causes a burst of WASM network requests
 
@@ -63,4 +88,3 @@ Checks:
 
 - Demo-web should cache/reuse the created runtime/agent for the same config (`packages/demo-web/src/main.ts`).
 - Demo-web should reuse a shared `BundleCache` and memoize install promises by bundle+version (`packages/demo-web/src/agent.ts`).
-
