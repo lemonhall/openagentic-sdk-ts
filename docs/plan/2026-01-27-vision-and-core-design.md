@@ -41,11 +41,11 @@ production-grade OS sandboxes (without changing tool semantics).
 - WASI network via injected `fetch` with `credentials: "omit"` by default.
 - Permission gating default: **ask once per session, then auto-allow** (user can revoke/reset).
 
-## Status (as of v7 — current repo reality)
+## Status (as of v8 — current repo reality)
 
 The repo now has a runnable end-to-end agent slice (Node + browser) and the default tool path is **WASI-first** in both environments, with safe fallbacks.
 
-**Implemented (v1–v7):**
+**Implemented (v1–v8):**
 
 - Event-sourced sessions + resumable runtime loop (multi-turn + tool calling + streaming).
 - Shadow workspace abstractions (Memory/OPFS/LocalDir) with explicit import/commit boundaries.
@@ -60,6 +60,10 @@ The repo now has a runnable end-to-end agent slice (Node + browser) and the defa
   - outer “process sandbox” adapters for the WASI runner process (v5; Bubblewrap first).
   - a Linux-only native execution engine (v6; host commands under Bubblewrap).
   - cross-platform sandbox backend registry with best-effort backends for Linux/macOS/Windows (v7).
+- Browser demo durable sessions (IndexedDB-backed JSONL event log) + reload-safe history (v8).
+- Browser demo reviewable changeset UI (file list + safe previews) before commit (v8).
+- Demo proxy bundle serving under `/bundles/...` to avoid local sample-path configuration for first runs (v8).
+- Baseline end-to-end “happy path” tests for Node and browser flows (v8).
 
 **Present and used by default in demos:**
 
@@ -70,12 +74,10 @@ The repo now has a runnable end-to-end agent slice (Node + browser) and the defa
 
 The high-level architecture remains valid, but several pieces are still “prototype-grade” or disconnected from the default runnable path:
 
-- **Browser session durability**: the demo still uses an in-memory JSONL store; reload loses history/audit logs.
-- **Review UX**: commit approval is minimal; needs a reviewable changeset (list + safe previews/diffs).
-- **Server-side WASI netfetch is still incomplete**: the browser runner wires `netFetch` end-to-end (policy + audits), but the current server runner is `wasmtime` CLI based and cannot easily expose custom host imports. This likely requires an embedded runtime or a standard WASI HTTP/component model.
-- **Python is partially delivered**: the `Python` tool + `lang-python` bundle wiring exists, but the shipped demo runtime is currently a minimal placeholder WASI module. A real MicroPython/CPython WASI runtime bundle + packaging policy is still tracked.
-- **Hosted official bundles**: users should be able to run the browser demo without relying on local “sample bundle” paths.
-- **E2E confidence**: add at least one stable end-to-end “happy path” test per environment.
+- **Python runtime is still a demo stub**: `Python` tool + `lang-python@0.0.0` wiring exists, but the shipped runtime intentionally supports only a tiny subset. A real MicroPython/CPython WASI runtime bundle + packaging policy is still needed.
+- **“Official bundles” are still dev/local-first**: the repo can serve signed bundles locally under `/bundles/...`, but it still needs a stable release artifact/publishing pipeline (versioning, key management, and a future public mirror story).
+- **Server-side WASI `netFetch` runner story needs a production-grade path**: correctness is explicit (`wasmtime` CLI runner fails fast when `netFetch` is requested), but real server workloads need a supported runner path with clear security/perf tradeoffs and tests.
+- **Release hardening**: keep tightening docs/guardrail tests and broaden e2e coverage so defaults don’t drift silently.
 
 ## Sandbox backends (WASI-first, pluggable hardening)
 

@@ -48,6 +48,12 @@ v8 returns to the original “vision story” and closes the remaining gaps that
 
 - v8 index: `v8-index.md`
 
+## v9 plans (convergence: production-grade Python, bundles, server netFetch, release hardening)
+
+v9 is a convergence pass: make the repo’s **vision and defaults** match what a real user should do today, and close the remaining “prototype-grade” gaps (notably: a real WASI Python runtime, a first-class “official bundles” story, a practical server `netFetch` runner story, and stronger release/e2e guardrails).
+
+- v9 index: `v9-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:

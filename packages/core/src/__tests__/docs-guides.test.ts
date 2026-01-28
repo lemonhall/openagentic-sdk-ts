@@ -18,9 +18,14 @@ describe("docs/guide", () => {
     const plansIndex = await readText("docs/plan/index.md");
     expect(plansIndex).toContain("v8 index");
     expect(plansIndex).toContain("v8-index.md");
+    expect(plansIndex).toContain("v9 index");
+    expect(plansIndex).toContain("v9-index.md");
+
+    const v9Index = await readText("docs/plan/v9-index.md");
+    expect(v9Index).toContain("v9 Plans Index");
 
     const vision = await readText("docs/plan/2026-01-27-vision-and-core-design.md");
-    expect(vision).toContain("Status (as of v7");
+    expect(vision).toContain("Status (as of v8");
 
     const guideReadme = await readText("docs/guide/README.md");
     expect(guideReadme).toContain("quickstart-node.md");
@@ -30,6 +35,7 @@ describe("docs/guide", () => {
     const quickNode = await readText("docs/guide/quickstart-node.md");
     expect(quickNode).toContain("--no-wasi");
     expect(quickNode).toContain("OPENAI_BASE_URL");
+    expect(quickNode).toContain("--wasi-python");
 
     const quickBrowser = await readText("docs/guide/quickstart-browser.md");
     expect(quickBrowser.toLowerCase()).toContain("bundles base url");
@@ -42,6 +48,9 @@ describe("docs/guide", () => {
     const tools = await readText("docs/guide/tools/README.md");
     expect(tools).toContain("Bash");
     expect(tools).toContain("WebFetch");
+
+    const pythonTool = await readText("docs/guide/tools/python.md");
+    expect(pythonTool).toContain("--wasi-python");
 
     const toolsOverview = await readText("docs/guide/tools.md");
     expect(toolsOverview).not.toContain("The demos do not enable them by default");
