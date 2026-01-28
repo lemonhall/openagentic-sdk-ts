@@ -24,6 +24,8 @@ import {
 import { InProcessWasiRunner, WorkerWasiRunner } from "@openagentic/wasi-runner-web";
 import type { WasiRunner } from "@openagentic/wasi-runner";
 
+import { createBrowserBundleCache } from "./bundle-cache.js";
+
 export type CreateBrowserAgentOptions = {
   sessionStore: SessionStore;
   workspace: Workspace;
@@ -38,26 +40,12 @@ export type CreateBrowserAgentOptions = {
   wasiPreopenDir?: string;
 };
 
-function createBrowserBundleCache(): BundleCache {
-  const mem = new Map<string, Uint8Array>();
-  return {
-    async read(path) {
-      const key = String(path ?? "");
-      return mem.get(key) ?? null;
-    },
-    async write(path, data) {
-      const key = String(path ?? "");
-      mem.set(key, data);
-    },
-  };
-}
-
 const sharedBundleCaches = new Map<string, BundleCache>();
 function getSharedBundleCache(wasiBundleBaseUrl?: string): BundleCache {
   const base = String(wasiBundleBaseUrl ?? "");
   const existing = sharedBundleCaches.get(base);
   if (existing) return existing;
-  const cache = createBrowserBundleCache();
+  const cache = createBrowserBundleCache({ base });
   sharedBundleCaches.set(base, cache);
   return cache;
 }
