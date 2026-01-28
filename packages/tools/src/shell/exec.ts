@@ -18,9 +18,25 @@ export type ShellExecResult = {
 
 export type ShellCommandResult = ShellExecResult & { cwd?: string };
 
-export type ShellCommandRunner = (argv: string[], io: { env: Record<string, string>; cwd: string; stdin?: string }, deps: { workspace: Workspace }) => Promise<ShellCommandResult>;
+export type ShellCommandRunner = (
+  argv: string[],
+  io: { env: Record<string, string>; vars: Record<string, string>; exports: Set<string>; cwd: string; stdin?: string },
+  deps: { workspace: Workspace },
+) => Promise<ShellCommandResult>;
 
-function expandVars(token: string, env: Record<string, string>, lastExitCode: number): string {
+type ShellState = {
+  vars: Record<string, string>;
+  env: Record<string, string>;
+  exports: Set<string>;
+  cwd: string;
+  lastExitCode: number;
+};
+
+function cloneState(s: ShellState): ShellState {
+  return { vars: { ...s.vars }, env: { ...s.env }, exports: new Set(s.exports), cwd: s.cwd, lastExitCode: s.lastExitCode };
+}
+
+function expandVars(token: string, vars: Record<string, string>, lastExitCode: number): string {
   let out = "";
   for (let i = 0; i < token.length; i++) {
     const c = token[i]!;
@@ -51,7 +67,7 @@ function expandVars(token: string, env: Record<string, string>, lastExitCode: nu
         continue;
       }
 
-      const value = env[name];
+      const value = vars[name];
       if (defaultValue !== null) {
         out += value ? value : defaultValue;
       } else {
@@ -65,7 +81,7 @@ function expandVars(token: string, env: Record<string, string>, lastExitCode: nu
       let j = i + 1;
       while (j < token.length && /[A-Za-z0-9_]/.test(token[j]!)) j++;
       const name = token.slice(i + 1, j);
-      out += env[name] ?? "";
+      out += vars[name] ?? "";
       i = j - 1;
       continue;
     }
@@ -99,83 +115,73 @@ async function expandGlob(token: string, workspace: Workspace, cwd: string): Pro
 
 async function tokenToWords(
   tok: WordToken,
-  env: Record<string, string>,
+  ctx: { state: ShellState; stdin?: string; lastExitCode: number },
   workspace: Workspace,
-  cwd: string,
-  lastExitCode: number,
-  runCommand: ShellCommandRunner,
+  deps: { runCommand: ShellCommandRunner },
 ): Promise<string[]> {
   const raw = tok.value;
   if (tok.quote === "single") return [raw];
-  let withVars = expandVars(raw, env, lastExitCode);
-
-  if (withVars.includes("$(")) {
-    let out = "";
-    for (let i = 0; i < withVars.length; i++) {
-      if (withVars[i] !== "$" || withVars[i + 1] !== "(") {
-        out += withVars[i]!;
-        continue;
-      }
-
-      const start = i + 2;
-      let j = start;
-      let depth = 1;
-      while (j < withVars.length && depth > 0) {
-        const c = withVars[j]!;
-        if (c === "(") depth++;
-        else if (c === ")") depth--;
-        j++;
-      }
-      if (depth !== 0) throw new Error("Shell: unterminated command substitution");
-
-      const inner = withVars.slice(start, j - 1);
-      const innerAst = parseScript(inner);
-      const innerRes = await execSequence(innerAst, { env, cwd, lastExitCode }, { runCommand, workspace });
-      const captured = String(innerRes.stdout ?? "").replace(/\r?\n$/, "");
-
-      out += captured;
-      i = j - 1;
-    }
-    withVars = out;
-  }
+  let withVars = expandVars(raw, ctx.state.vars, ctx.lastExitCode);
+  withVars = await expandCommandSubstitutions(withVars, ctx, { workspace, runCommand: deps.runCommand });
 
   if (tok.quote !== "none") return [withVars];
   // POSIX-ish behavior: empty unquoted expansions produce no word.
   if (withVars === "") return [];
-  return expandGlob(withVars, workspace, cwd);
+  return expandGlob(withVars, workspace, ctx.state.cwd);
 }
 
 async function expandText(
   raw: string,
-  env: Record<string, string>,
-  cwd: string,
-  lastExitCode: number,
+  ctx: { state: ShellState; stdin?: string; lastExitCode: number },
   deps: { runCommand: ShellCommandRunner; workspace: Workspace },
 ): Promise<string> {
-  let withVars = expandVars(raw, env, lastExitCode);
-  if (!withVars.includes("$(")) return withVars;
+  let withVars = expandVars(raw, ctx.state.vars, ctx.lastExitCode);
+  return expandCommandSubstitutions(withVars, ctx, deps);
+}
 
+async function tokensToArgv(
+  tokens: WordToken[],
+  ctx: { state: ShellState; stdin?: string; lastExitCode: number },
+  workspace: Workspace,
+  deps: { runCommand: ShellCommandRunner },
+): Promise<string[]> {
+  const out: string[] = [];
+  for (const t of tokens) {
+    const expanded = await tokenToWords(t, ctx, workspace, deps);
+    out.push(...expanded);
+  }
+  return out;
+}
+
+async function expandCommandSubstitutions(
+  text: string,
+  ctx: { state: ShellState; stdin?: string; lastExitCode: number },
+  deps: { runCommand: ShellCommandRunner; workspace: Workspace },
+): Promise<string> {
+  if (!text.includes("$(")) return text;
   let out = "";
-  for (let i = 0; i < withVars.length; i++) {
-    if (withVars[i] !== "$" || withVars[i + 1] !== "(") {
-      out += withVars[i]!;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== "$" || text[i + 1] !== "(") {
+      out += text[i]!;
       continue;
     }
 
     const start = i + 2;
     let j = start;
     let depth = 1;
-    while (j < withVars.length && depth > 0) {
-      const c = withVars[j]!;
+    while (j < text.length && depth > 0) {
+      const c = text[j]!;
       if (c === "(") depth++;
       else if (c === ")") depth--;
       j++;
     }
     if (depth !== 0) throw new Error("Shell: unterminated command substitution");
 
-    const inner = withVars.slice(start, j - 1);
+    const inner = text.slice(start, j - 1);
     const innerAst = parseScript(inner);
-    const innerRes = await execSequence(innerAst, { env, cwd, lastExitCode }, deps);
+    const subState = cloneState(ctx.state);
+    subState.lastExitCode = ctx.lastExitCode;
+    const innerRes = await execSequenceWithState(innerAst, { state: subState, stdin: ctx.stdin }, deps);
     const captured = String(innerRes.stdout ?? "").replace(/\r?\n$/, "");
 
     out += captured;
@@ -184,29 +190,12 @@ async function expandText(
   return out;
 }
 
-async function tokensToArgv(
-  tokens: WordToken[],
-  env: Record<string, string>,
-  workspace: Workspace,
-  cwd: string,
-  lastExitCode: number,
-  runCommand: ShellCommandRunner,
-): Promise<string[]> {
-  const out: string[] = [];
-  for (const t of tokens) {
-    const expanded = await tokenToWords(t, env, workspace, cwd, lastExitCode, runCommand);
-    out.push(...expanded);
-  }
-  return out;
-}
-
-export async function execSequence(
+async function execSequenceWithState(
   ast: ScriptNode,
-  opts: ShellExecOptions,
+  opts: { state: ShellState; stdin?: string },
   deps: { runCommand: ShellCommandRunner; workspace: Workspace },
 ): Promise<ShellExecResult> {
-  const env = opts.env ?? {};
-  const state = { cwd: opts.cwd ?? "", lastExitCode: opts.lastExitCode ?? 0 };
+  const state = opts.state;
   const { runCommand, workspace } = deps;
 
   const applyOutputRedirs = async (
@@ -226,12 +215,12 @@ export async function execSequence(
 
     for (const r of redirs) {
       if (r.kind === "out" || r.kind === "append") {
-        const [p0] = await tokenToWords(r.path, env, workspace, ctx.cwd, ctx.lastExitCode, runCommand);
+        const [p0] = await tokenToWords(r.path, { state, stdin: opts.stdin, lastExitCode: ctx.lastExitCode }, workspace, { runCommand });
         fd1 = { kind: "file", path: p0, append: r.kind === "append" };
         continue;
       }
       if (r.kind === "err" || r.kind === "errAppend") {
-        const [p0] = await tokenToWords(r.path, env, workspace, ctx.cwd, ctx.lastExitCode, runCommand);
+        const [p0] = await tokenToWords(r.path, { state, stdin: opts.stdin, lastExitCode: ctx.lastExitCode }, workspace, { runCommand });
         fd2 = { kind: "file", path: p0, append: r.kind === "errAppend" };
         continue;
       }
@@ -296,23 +285,25 @@ export async function execSequence(
           if (eq <= 0) continue;
           const name = a.value.slice(0, eq);
           const valueRaw = a.value.slice(eq + 1);
-          assignsMap[name] = await expandText(valueRaw, env, state.cwd, preExit, { runCommand, workspace });
+          assignsMap[name] = await expandText(valueRaw, { state, stdin, lastExitCode: preExit }, { runCommand, workspace });
         }
 
         if (cmd.subshell) {
           // Apply redirects for the subshell "command".
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
-            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, preExit, runCommand);
+            const [p0] = await tokenToWords(r.path, { state, stdin, lastExitCode: preExit }, workspace, { runCommand });
             const bytes = await workspace.readFile(p0);
             stdin = new TextDecoder().decode(bytes);
           }
 
-          const out = await execSequence(
-            cmd.subshell,
-            { env: { ...env, ...assignsMap }, cwd: state.cwd, stdin, lastExitCode: preExit },
-            { runCommand, workspace },
-          );
+          const subState = cloneState(state);
+          for (const [k, v] of Object.entries(assignsMap)) {
+            subState.vars[k] = v;
+            subState.env[k] = v;
+            subState.exports.add(k);
+          }
+          const out = await execSequenceWithState(cmd.subshell, { state: subState, stdin }, { runCommand, workspace });
           lastExit = Number(out.exitCode ?? 0);
           const after = await applyOutputRedirs(cmd.redirs, { stdout: String(out.stdout ?? ""), stderr: String(out.stderr ?? "") }, { cwd: state.cwd, lastExitCode: preExit });
           lastStdout = after.stdout;
@@ -320,9 +311,12 @@ export async function execSequence(
           stdin = lastStdout;
           state.lastExitCode = lastExit;
         } else {
-          // Standalone assignments: persist into the current shell env (POSIX-ish; no separate shell-vars yet).
+          // Standalone assignments: persist into shell vars; exported vars also update env.
           if (cmd.argv.length === 0 && Object.keys(assignsMap).length > 0) {
-            Object.assign(env, assignsMap);
+            for (const [k, v] of Object.entries(assignsMap)) {
+              state.vars[k] = v;
+              if (state.exports.has(k)) state.env[k] = v;
+            }
             lastExit = 0;
             lastStdout = "";
             lastStderr = "";
@@ -331,28 +325,31 @@ export async function execSequence(
             continue;
           }
 
-          const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd, preExit, runCommand);
+          const argv = await tokensToArgv(cmd.argv, { state, stdin, lastExitCode: preExit }, workspace, { runCommand });
 
           // Apply input redirection on first command only (v1 simplification).
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
-            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, preExit, runCommand);
+            const [p0] = await tokenToWords(r.path, { state, stdin, lastExitCode: preExit }, workspace, { runCommand });
             const bytes = await workspace.readFile(p0);
             stdin = new TextDecoder().decode(bytes);
           }
 
           const prior = new Map<string, string | undefined>();
           for (const [k, v] of Object.entries(assignsMap)) {
-            prior.set(k, env[k]);
-            env[k] = v;
+            prior.set(k, state.env[k]);
+            state.env[k] = v;
           }
           let out: ShellCommandResult;
           try {
-            out = await runCommand(argv, { env, cwd: state.cwd, stdin }, { workspace });
+            out = await runCommand(argv, { env: state.env, vars: state.vars, exports: state.exports, cwd: state.cwd, stdin }, { workspace });
           } finally {
             for (const [k, prev] of prior.entries()) {
-              if (prev === undefined) delete env[k];
-              else env[k] = prev;
+              // Only restore prefix-assigned values if they were not modified during execution.
+              if (state.env[k] === assignsMap[k]) {
+                if (prev === undefined) delete state.env[k];
+                else state.env[k] = prev;
+              }
             }
           }
           lastExit = Number(out.exitCode ?? 0);
@@ -401,4 +398,20 @@ export async function execSequence(
   }
 
   return { exitCode, stdout, stderr };
+}
+
+export async function execSequence(
+  ast: ScriptNode,
+  opts: ShellExecOptions,
+  deps: { runCommand: ShellCommandRunner; workspace: Workspace },
+): Promise<ShellExecResult> {
+  const initEnv = { ...(opts.env ?? {}) };
+  const state: ShellState = {
+    vars: { ...initEnv },
+    env: { ...initEnv },
+    exports: new Set(Object.keys(initEnv)),
+    cwd: opts.cwd ?? "",
+    lastExitCode: opts.lastExitCode ?? 0,
+  };
+  return execSequenceWithState(ast, { state, stdin: opts.stdin }, deps);
 }

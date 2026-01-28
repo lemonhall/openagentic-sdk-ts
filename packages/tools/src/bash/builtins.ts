@@ -2,7 +2,7 @@ import type { Workspace } from "@openagentic/workspace";
 
 import { resolveCwdPath } from "./path.js";
 
-export type BuiltinIo = { env: Record<string, string>; cwd: string; stdin?: string };
+export type BuiltinIo = { env: Record<string, string>; vars: Record<string, string>; exports: Set<string>; cwd: string; stdin?: string };
 export type BuiltinResult = { exitCode: number; stdout: string; stderr: string; cwd?: string };
 export type BuiltinDeps = { workspace: Workspace; hasCommand?: (name: string) => boolean };
 
@@ -189,7 +189,9 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
           ok = false;
           continue;
         }
-        io.env[a0] = io.env[a0] ?? "";
+        io.exports.add(a0);
+        if (!(a0 in io.vars)) io.vars[a0] = "";
+        io.env[a0] = io.vars[a0] ?? "";
         continue;
       }
       const name = a0.slice(0, eq);
@@ -198,6 +200,8 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
         ok = false;
         continue;
       }
+      io.vars[name] = value;
+      io.exports.add(name);
       io.env[name] = value;
     }
     return { exitCode: ok ? 0 : 1, stdout: "", stderr: "" };
@@ -211,6 +215,8 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
         ok = false;
         continue;
       }
+      io.exports.delete(n);
+      delete io.vars[n];
       delete io.env[n];
     }
     return { exitCode: ok ? 0 : 1, stdout: "", stderr: "" };
