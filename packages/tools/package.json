@@ -4,10 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@openagentic/bundles": "workspace:*",
     "@openagentic/native-runner": "workspace:*",
     "@openagentic/sdk-core": "workspace:*",
-    "@openagentic/wasi-runner": "workspace:*",
     "@openagentic/workspace": "workspace:*"
   },
   "exports": {
@@ -26,7 +24,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
-    "@openagentic/wasi-runner-web": "workspace:*",
     "typescript": "^5.7.3",
     "vitest": "^2.1.9",
     "wabt": "^1.0.37"

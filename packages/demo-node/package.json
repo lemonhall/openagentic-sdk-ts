@@ -4,14 +4,11 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@openagentic/bundles": "workspace:*",
     "@openagentic/native-runner": "workspace:*",
     "@openagentic/providers-openai": "workspace:*",
     "@openagentic/sdk-core": "workspace:*",
     "@openagentic/sdk-node": "workspace:*",
     "@openagentic/tools": "workspace:*",
-    "@openagentic/wasi-runner-wasmtime": "workspace:*",
-    "@openagentic/wasi-runner-web": "workspace:*",
     "@openagentic/workspace": "workspace:*"
   },
   "scripts": {

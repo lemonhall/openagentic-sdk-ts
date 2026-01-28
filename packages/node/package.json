@@ -5,8 +5,7 @@
   "type": "module",
   "dependencies": {
     "@openagentic/native-runner": "workspace:*",
-    "@openagentic/sdk-core": "workspace:*",
-    "@openagentic/wasi-runner-wasmtime": "workspace:*"
+    "@openagentic/sdk-core": "workspace:*"
   },
   "exports": {
     ".": {

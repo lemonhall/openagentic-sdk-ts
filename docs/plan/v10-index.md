@@ -1,5 +1,7 @@
 # v10 Plans Index — POSIX-ish `sh` Compatibility (Shell Semantics + Minimal Toolchain)
 
+> **Status:** ABANDONED as of v13 (2026-01-28). v13 stops pursuing a WASI “distro/shell parity” path and instead uses host-native execution on Node/server and TS-native tools in the browser.
+
 > Goal of v10: make the “Bash” tool behave like a real shell (POSIX-ish `sh`) and ship enough builtins + coreutils-like commands that common scripts run without surprise.
 
 ## Why v10 exists

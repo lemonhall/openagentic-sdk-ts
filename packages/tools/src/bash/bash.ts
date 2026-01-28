@@ -3,12 +3,10 @@ import type { Workspace } from "@openagentic/workspace";
 
 import { execSequence } from "../shell/exec.js";
 import { parse } from "../shell/parser.js";
-import type { CommandTool } from "../command.js";
 import { runBuiltin } from "./builtins.js";
 
 export type BashToolOptions = {
   maxOutputBytes?: number;
-  wasiCommand?: CommandTool;
 };
 
 function truncateBytes(s: string, maxBytes: number): { text: string; truncated: boolean } {
@@ -32,12 +30,10 @@ export class BashTool implements Tool {
   };
 
   readonly #maxOutputBytes: number;
-  readonly #wasiCommand?: CommandTool;
 
   constructor(options: BashToolOptions = {}) {
     this.#maxOutputBytes =
       typeof options.maxOutputBytes === "number" && options.maxOutputBytes > 0 ? Math.trunc(options.maxOutputBytes) : 1024 * 1024;
-    this.#wasiCommand = options.wasiCommand;
   }
 
   async run(toolInput: Record<string, unknown>, ctx: ToolContext): Promise<unknown> {
@@ -55,60 +51,7 @@ export class BashTool implements Tool {
     const res = await execSequence(ast, { env, cwd }, {
       workspace,
       runCommand: async (argv, io, deps) => {
-        const cmdName = argv[0] ?? "";
-
-        // Always allow a small builtin set to run even when using WASI bundles.
-        // These are either shell-control primitives or host-provided utilities.
-        const forcedBuiltins = new Set([
-          // shell-control primitives (must be builtins; can't be delegated)
-          ":",
-          "true",
-          "false",
-          "command",
-          "export",
-          "unset",
-          "set",
-          "shift",
-          "test",
-          "[",
-          "cd",
-          "pwd",
-          // host-provided utilities (keep deterministic + portable)
-          "date",
-          "uname",
-          "whoami",
-          // baseline convenience builtins
-          "echo",
-          "printf",
-          // prefer host builtins over minimal WASI stubs (core-utils v0.0.0)
-          "cat",
-          "head",
-          "ls",
-          "find",
-          "grep",
-        ]);
-        const hasCommand = (n: string) => Boolean((this.#wasiCommand as any)?.hasCommand?.(n));
-        if (forcedBuiltins.has(cmdName)) {
-          const out = await runBuiltin(argv, io, { workspace: deps.workspace, hasCommand });
-          if (!out) throw new Error(`unknown command: ${cmdName}`);
-          return out;
-        }
-
-        if (this.#wasiCommand && hasCommand(cmdName)) {
-          const out = (await this.#wasiCommand.run(
-            {
-              argv,
-              cwd: io.cwd,
-              env: io.env,
-              stdin: io.stdin,
-              limits: { maxStdoutBytes: this.#maxOutputBytes, maxStderrBytes: this.#maxOutputBytes },
-            },
-            { sessionId: ctx.sessionId, toolUseId: `${ctx.toolUseId}:cmd`, workspace: deps.workspace } as any,
-          )) as any;
-          return { exitCode: Number(out.exitCode ?? out.exit_code ?? 0), stdout: String(out.stdout ?? ""), stderr: String(out.stderr ?? "") };
-        }
-
-        const out = await runBuiltin(argv, io, { workspace: deps.workspace, hasCommand });
+        const out = await runBuiltin(argv, io, { workspace: deps.workspace });
         if (!out) throw new Error(`unknown command: ${argv[0] ?? ""}`);
         return out;
       },

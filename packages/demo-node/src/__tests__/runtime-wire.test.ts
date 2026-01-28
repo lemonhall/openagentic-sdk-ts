@@ -56,7 +56,21 @@ describe("demo-node runtime wiring", () => {
     const workspace = new MemoryWorkspace();
     const provider = new FakeProvider() as any;
 
-    const { runtime } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model" });
+    const { runtime } = await createDemoRuntime({
+      sessionStore,
+      workspace,
+      provider,
+      model: "fake-model",
+      nativeRunner: {
+        exec: async () => ({
+          exitCode: 0,
+          stdout: new Uint8Array(),
+          stderr: new Uint8Array(),
+          truncatedStdout: false,
+          truncatedStderr: false,
+        }),
+      } as any,
+    });
 
     const events: any[] = [];
     for await (const e of runtime.runTurn({ userText: "please write a file" })) events.push(e);
@@ -70,39 +84,7 @@ describe("demo-node runtime wiring", () => {
     expect(events.some((e) => e.type === "result" && e.finalText === "done")).toBe(true);
   });
 
-  it("can enable WASI-backed Bash", async () => {
-    const createDemoRuntime = (runtimeMod as any).createDemoRuntime as
-      | ((opts: any) => { runtime: any; tools: any })
-      | undefined;
-    expect(typeof createDemoRuntime).toBe("function");
-    if (typeof createDemoRuntime !== "function") return;
-
-    const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
-    const workspace = new MemoryWorkspace();
-    const provider = new FakeProvider() as any;
-
-    const { tools } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model", enableWasiBash: true });
-
-    const bash = tools.get("Bash");
-    const out = (await bash.run(
-      { command: "echo hi" },
-      { sessionId: "s", toolUseId: "t", workspace } as any,
-    )) as any;
-
-    expect(out.stdout).toBe("hi\n");
-  });
-
-  it("chooses in-process WASI runner when netFetch is enabled", async () => {
-    const choose = (runtimeMod as any).chooseNodeWasiRunnerKind as ((opts: any) => string) | undefined;
-    expect(typeof choose).toBe("function");
-    if (typeof choose !== "function") return;
-
-    expect(choose({ enableWasiNetFetch: true, wasmtimeAvailable: true })).toBe("inprocess");
-    expect(choose({ enableWasiNetFetch: true, wasmtimeAvailable: false })).toBe("inprocess");
-    expect(choose({ enableWasiNetFetch: false, wasmtimeAvailable: true })).toBe("wasmtime");
-  });
-
-  it("defaults to WASI-backed Bash", async () => {
+  it("wires host-native Bash using the provided NativeRunner", async () => {
     const createDemoRuntime = (runtimeMod as any).createDemoRuntime as
       | ((opts: any) => Promise<{ tools: any }>)
       | undefined;
@@ -112,63 +94,37 @@ describe("demo-node runtime wiring", () => {
     const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
     const workspace = new MemoryWorkspace();
     const provider = new FakeProvider() as any;
-
-    const { tools } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model" });
-    const bash = tools.get("Bash");
-    const out = (await bash.run(
-      { command: "echo hi" },
-      { sessionId: "s", toolUseId: "t", workspace } as any,
-    )) as any;
-
-    expect(out.stdout).toBe("hi\n");
-    expect(tools.names()).not.toContain("Python");
-  });
-
-  it("can enable WASI-backed Python (stub)", async () => {
-    const createDemoRuntime = (runtimeMod as any).createDemoRuntime as
-      | ((opts: any) => Promise<{ tools: any }>)
-      | undefined;
-    expect(typeof createDemoRuntime).toBe("function");
-    if (typeof createDemoRuntime !== "function") return;
-
-    const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
-    const workspace = new MemoryWorkspace();
-    const provider = new FakeProvider() as any;
-
-    const { tools } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model", enableWasiPython: true });
-    expect(tools.names()).toContain("Python");
-  });
-
-  it("can enable native engine Bash (no bundles)", async () => {
-    const createDemoRuntime = (runtimeMod as any).createDemoRuntime as
-      | ((opts: any) => Promise<{ tools: any }>)
-      | undefined;
-    expect(typeof createDemoRuntime).toBe("function");
-    if (typeof createDemoRuntime !== "function") return;
-
-    const sessionStore = new JsonlSessionStore(new MemoryJsonlBackend() as any);
-    const workspace = new MemoryWorkspace();
-    const provider = new FakeProvider() as any;
+    const calls: any[] = [];
 
     const { tools } = await createDemoRuntime({
       sessionStore,
       workspace,
       provider,
       model: "fake-model",
-      toolEngine: "native",
-      wasiPreopenDir: "/tmp/shadow",
       nativeRunner: {
-        exec: async () => ({
+        exec: async (input: any) => {
+          calls.push(input);
+          return {
           exitCode: 0,
           stdout: new TextEncoder().encode("ok\n"),
           stderr: new Uint8Array(),
           truncatedStdout: false,
           truncatedStderr: false,
-        }),
+          };
+        },
       } as any,
     });
     const bash = tools.get("Bash");
     expect(bash).toBeTruthy();
     expect(String(bash.description)).toContain("host-native");
+
+    const out = (await bash.run(
+      { command: "echo hi", cwd: "src" },
+      { sessionId: "s", toolUseId: "t", workspace } as any,
+    )) as any;
+    expect(out.exit_code).toBe(0);
+    expect(out.stdout).toBe("ok\n");
+    expect(calls[0]?.argv).toEqual(["bash", "-lc", "echo hi"]);
+    expect(calls[0]?.cwd).toBe("src");
   });
 });

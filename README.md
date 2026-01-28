@@ -3,8 +3,7 @@
 Tool-first agent runtime for **TypeScript**, designed to run with consistent semantics in:
 
 - Browsers (OPFS shadow workspace)
-- WASM/WASI runtimes
-- Servers (with a WASI host such as `wasmtime`)
+- Servers (with sandboxed host-native tool execution)
 
 ![OpenAgentic Demo Screenshot](./screenshot.png)
 
@@ -18,7 +17,7 @@ This repo is a TS port of the Python `openagentic-sdk`, but focuses on the small
 
 ## Status
 
-- v1: core primitives (events, sessions, tools, workspace, WASI runner)
+- v1: core primitives (events, sessions, tools, workspace)
 - v2: runnable demos + guides (Node + Browser)
 
 ## Quickstart (Node)
@@ -73,10 +72,10 @@ More details: `docs/guide/security.md`
 
 - `packages/core` (`@openagentic/sdk-core`): events, sessions, tool registry/runner, agent runtime, LLM provider types
 - `packages/providers-openai` (`@openagentic/providers-openai`): OpenAI Responses API provider (JSON + SSE streaming)
-- `packages/tools` (`@openagentic/tools`): tool implementations (workspace file tools + `Bash`; WASI `Command`/`Shell` power WASI-backed `Bash` in demos)
+- `packages/tools` (`@openagentic/tools`): tool implementations (workspace file tools + `Bash`)
 - `packages/workspace` (`@openagentic/workspace`): shadow workspace backends (Memory/OPFS) + import/commit helpers
 - `packages/workspace/node` (`@openagentic/workspace/node`): Node-only workspace (LocalDirWorkspace)
-- `packages/wasi-runner*`: WASI runners (web + wasmtime) and netfetch policy
+- `packages/native-runner` (`@openagentic/native-runner`): sandboxed host-native execution backends (e.g. Bubblewrap)
 - `packages/demo-node`: runnable Node demo (interactive)
 - `packages/demo-proxy`: local OpenAI proxy for browser demo (CORS + key isolation)
 - `packages/demo-web`: runnable browser demo (Vite)
@@ -86,6 +85,13 @@ More details: `docs/guide/security.md`
 - User guides + quickstarts: `docs/guide/README.md`
 - Project vision + core design: `docs/plan/2026-01-27-vision-and-core-design.md`
 - v1/v2 plan index: `docs/plan/index.md`
+- v13 plan (toolchain simplification): `docs/plan/v13-index.md`
+
+## `Bash` sandbox (finite)
+
+`Bash` always runs over the **shadow workspace**, not your host filesystem.
+
+As of v13 (2026-01-28), the repo **abandons WASI toolchains / bundles / registries** and uses sandboxed **host-native execution** on Node/server, while the browser demo uses TS-native tools only. See: `docs/plan/v13-index.md`.
 
 ## Development
 

@@ -1,5 +1,3 @@
-export { CommandTool } from "./command.js";
-export { ShellTool } from "./shell.js";
 export { BashTool } from "./bash/bash.js";
 export { NativeBashTool } from "./bash/bash-native.js";
 export { ReadFileTool } from "./workspace/read-file.js";
@@ -15,4 +13,3 @@ export { SlashCommandTool } from "./claude/slash-command.js";
 export { SkillTool } from "./claude/skill.js";
 export { WebFetchTool } from "./web/web-fetch.js";
 export { WebSearchTool } from "./web/web-search.js";
-export { PythonTool } from "./python/python.js";

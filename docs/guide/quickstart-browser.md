@@ -47,19 +47,8 @@ Open the URL printed by Vite.
 - Click “Commit → Real” to write OPFS changes back to the selected folder.
 - Sessions are stored as JSONL events in a durable browser store (reload-safe).
 
-## WASI-backed `Bash` (preview)
+## `Bash` (Browser)
 
-In the web UI, enable “WASI Bash” to run the `Bash` tool via signed WASI bundles.
-
-By default, the demo derives the **bundles base URL** from the proxy URL:
-
-- Provider base URL: `http://localhost:8787/v1`
-- Bundles base URL: `http://localhost:8787` (served under `/bundles/...`)
-
-Bundle manifests are verified (signature + sha256) before use.
-
-## WASI-backed `Python` (stub)
-
-The web demo also includes an opt-in “WASI Python (stub)” toggle. This uses the `lang-python@0.0.0` demo bundle and is **not** full CPython/MicroPython semantics.
+The browser demo’s `Bash` is a restricted TS-native shell over the OPFS shadow workspace (finite command surface; not host bash).
 
 Note: `WebSearch` requires a server-side `TAVILY_API_KEY` and is not enabled in the browser demo by default.

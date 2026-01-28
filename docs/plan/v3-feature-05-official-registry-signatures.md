@@ -1,6 +1,7 @@
 # v3 Feature 05: Official Registry Signature Verification (Implementation Plan)
 
 > **For Codex:** REQUIRED SKILL: `$tashan-development-loop` for implementation.  
+> **Status:** ABANDONED as of v13 (2026-01-28). The “official registry + signature enforced installs” direction is abandoned; v13 pivots to a pinned toolchain + finite `Bash` contract.
 > **Goal:** Enforce signature verification for the official tool bundle registry (sha256 is not enough).
 
 ## Problem / Current State
@@ -53,4 +54,3 @@ Implementation notes:
 - Modify: `docs/guide/tools/README.md` (document official-only registry)
 
 **Commit:** `feat(bundles): verify official registry signatures`
-

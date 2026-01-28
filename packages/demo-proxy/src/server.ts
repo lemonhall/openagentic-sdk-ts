@@ -1,8 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import { createServer } from "node:http";
-import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { join, normalize, sep } from "node:path";
+import { join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
@@ -40,35 +38,12 @@ function repoRootFromHere(): string {
   return join(here, "..", "..", "..");
 }
 
-function bundlesRoot(): string {
-  // Prefer official bundles if present; fall back to the dev sample bundles.
-  const official = join(repoRootFromHere(), "packages", "bundles", "official", "bundles");
-  if (existsSync(official)) return official;
-
-  return join(repoRootFromHere(), "packages", "bundles", "sample", "bundles");
-}
-
-function isSafeBundlesPath(urlPath: string): boolean {
-  if (!urlPath.startsWith("/bundles/")) return false;
-  if (urlPath.includes("..")) return false;
-  if (urlPath.includes("\\")) return false;
-  return true;
-}
-
-function contentTypeForPath(path: string): string {
-  if (path.endsWith(".json")) return "application/json";
-  if (path.endsWith(".wasm")) return "application/wasm";
-  return "application/octet-stream";
-}
-
 export function createProxyHandler(options: ProxyServerOptions): (req: IncomingMessage, res: import("node:http").ServerResponse) => void {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   if (typeof fetchImpl !== "function") throw new Error("demo-proxy: fetch is required");
 
   const upstreamBaseUrl = (options.upstreamBaseUrl ?? "https://api.openai.com/v1").replace(/\/+$/, "");
   const upstreamUrl = `${upstreamBaseUrl}/responses`;
-  const bundlesRootDir = bundlesRoot();
-  const bundlesRootNorm = normalize(bundlesRootDir);
 
   return async (req, res) => {
     try {
@@ -77,32 +52,6 @@ export function createProxyHandler(options: ProxyServerOptions): (req: IncomingM
       if (req.method === "OPTIONS") {
         res.statusCode = 204;
         res.end();
-        return;
-      }
-
-      const urlPath = String(req.url ?? "").split("?")[0] ?? "";
-      if (req.method === "GET" && urlPath.startsWith("/bundles/")) {
-        if (!isSafeBundlesPath(urlPath)) {
-          res.statusCode = 400;
-          res.end("invalid bundles path");
-          return;
-        }
-        const rel = urlPath.replace(/^\/bundles\//, "");
-        const full = normalize(join(bundlesRootDir, rel));
-        if (!full.startsWith(bundlesRootNorm + sep) && full !== bundlesRootNorm) {
-          res.statusCode = 400;
-          res.end("invalid bundles path");
-          return;
-        }
-        try {
-          const bytes = await readFile(full);
-          res.statusCode = 200;
-          res.setHeader("content-type", contentTypeForPath(full));
-          res.end(bytes);
-        } catch {
-          res.statusCode = 404;
-          res.end("not found");
-        }
         return;
       }
 

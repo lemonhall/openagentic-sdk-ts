@@ -1,5 +1,7 @@
 # v1-feature-12: Registry fetch defaults to credentials=omit
 
+> **Status:** ABANDONED as of v13 (2026-01-28). The “bundle registry install” direction is abandoned; keep `credentials: "omit"` as a general rule (see `docs/guide/security.md`).
+
 Goal: ensure bundle/registry downloads never use user cookies/session state by default (same safety rule as WASI netfetch).
 
 ## Scope
@@ -24,4 +26,3 @@ Goal: ensure bundle/registry downloads never use user cookies/session state by d
 
 - `pnpm test`
 - `git status` clean
-

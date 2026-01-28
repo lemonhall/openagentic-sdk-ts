@@ -1,42 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 
-import type { BundleCache, InstalledBundle } from "@openagentic/bundles";
-import { parseBundleManifest } from "@openagentic/bundles";
 import { MemoryWorkspace } from "@openagentic/workspace";
-import { InProcessWasiRunner } from "@openagentic/wasi-runner-web";
 
 import { BashTool } from "../bash/bash.js";
-import { CommandTool } from "../command.js";
-
-function sampleBundleRoot(): string {
-  return join(process.cwd(), "..", "bundles", "sample");
-}
-
-function fileCache(rootDir: string): BundleCache {
-  return {
-    async read(path) {
-      try {
-        const full = join(rootDir, path);
-        return new Uint8Array(await readFile(full));
-      } catch {
-        return null;
-      }
-    },
-    async write() {
-      throw new Error("not used in this test");
-    },
-  };
-}
-
-async function loadCoreUtilsBundle(root: string): Promise<InstalledBundle> {
-  const manifestRaw = JSON.parse(
-    await readFile(join(root, "bundles", "core-utils", "0.0.0", "manifest.json"), "utf8"),
-  ) as unknown;
-  const manifest = parseBundleManifest(manifestRaw);
-  return { manifest, rootPath: "bundles/core-utils/0.0.0" };
-}
 
 describe("BashTool (workspace-native)", () => {
   it("supports pipes + grep over workspace files", async () => {
@@ -312,104 +278,5 @@ describe("BashTool (workspace-native)", () => {
     expect(out.stderr).toBe("");
     // Prefix assignment should not affect expansion of later argv words in the same simple command.
     expect(out.stdout).toBe("\nbar\nbaz\n");
-  });
-});
-
-describe("BashTool (WASI backend)", () => {
-  it("supports pipes via core-utils bundle", async () => {
-    const root = sampleBundleRoot();
-    const bundle = await loadCoreUtilsBundle(root);
-    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache: fileCache(root) });
-
-    const ws = new MemoryWorkspace();
-    const bash = new BashTool({ wasiCommand: command } as any);
-    const out = (await bash.run(
-      { command: "echo hi | grep hi" },
-      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
-    )) as any;
-
-    expect(out.exit_code).toBe(0);
-    expect(out.stdout).toBe("hi\n");
-  });
-
-  it("does not error when an unquoted variable expands to empty", async () => {
-    const root = sampleBundleRoot();
-    const bundle = await loadCoreUtilsBundle(root);
-    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache: fileCache(root) });
-
-    const ws = new MemoryWorkspace();
-    const bash = new BashTool({ wasiCommand: command } as any);
-    const out = (await bash.run(
-      { command: "echo $SHELL" },
-      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
-    )) as any;
-
-    expect(out.exit_code).toBe(0);
-    expect(out.stderr).toBe("");
-  });
-
-  it("supports command -v for builtin and bundle commands", async () => {
-    const root = sampleBundleRoot();
-    const bundle = await loadCoreUtilsBundle(root);
-    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache: fileCache(root) });
-
-    const ws = new MemoryWorkspace();
-    const bash = new BashTool({ wasiCommand: command } as any);
-    const out = (await bash.run(
-      { command: "command -v echo command date head : true false printf test [ export unset" },
-      { sessionId: "s", toolUseId: "t", workspace: ws, env: { SOURCE_DATE_EPOCH: "0" } } as any,
-    )) as any;
-
-    expect(out.exit_code).toBe(0);
-    expect(out.stdout.split("\n").filter(Boolean)).toEqual([
-      "echo",
-      "command",
-      "date",
-      "head",
-      ":",
-      "true",
-      "false",
-      "printf",
-      "test",
-      "[",
-      "export",
-      "unset",
-    ]);
-  });
-
-  it("supports date (deterministic via SOURCE_DATE_EPOCH)", async () => {
-    const root = sampleBundleRoot();
-    const bundle = await loadCoreUtilsBundle(root);
-    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache: fileCache(root) });
-
-    const ws = new MemoryWorkspace();
-    const bash = new BashTool({ wasiCommand: command } as any);
-    const out = (await bash.run(
-      { command: "date", env: { SOURCE_DATE_EPOCH: "0" } },
-      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
-    )) as any;
-
-    expect(out.exit_code).toBe(0);
-    expect(out.stdout).toBe("1970-01-01T00:00:00.000Z\n");
-  });
-
-  it("supports rg -n for recursive workspace search", async () => {
-    const root = sampleBundleRoot();
-    const bundle = await loadCoreUtilsBundle(root);
-    const command = new CommandTool({ runner: new InProcessWasiRunner(), bundles: [bundle], cache: fileCache(root) });
-
-    const ws = new MemoryWorkspace();
-    await ws.writeFile("a.txt", new TextEncoder().encode("hello\nworld\n"));
-    await ws.writeFile("sub/b.txt", new TextEncoder().encode("hello again\n"));
-
-    const bash = new BashTool({ wasiCommand: command } as any);
-    const out = (await bash.run(
-      { command: "rg -n hello ." },
-      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
-    )) as any;
-
-    expect(out.exit_code).toBe(0);
-    expect(out.stdout).toContain("a.txt:1:hello");
-    expect(out.stdout).toContain("sub/b.txt:1:hello again");
   });
 });

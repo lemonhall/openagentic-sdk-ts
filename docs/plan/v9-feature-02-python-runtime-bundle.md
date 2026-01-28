@@ -1,5 +1,7 @@
 # v9 Feature 02: Real `Python` Runtime Bundle (MicroPython-first) (Implementation Plan)
 
+> **Status:** ABANDONED as of v13 (2026-01-28). v13 removes WASI toolchains/bundles/registries; this plan is kept for historical context.
+
 > **Goal:** Replace the current demo-stub `lang-python@0.0.0` with a real WASI Python runtime that can run useful “agent scripting” workloads under strict limits in both browser and server WASI runners.
 
 ## Design options (pick one; v9 recommends Option A)
@@ -52,4 +54,3 @@
 3. Add build script + generated bundle artifacts (or a CI fetch step if artifacts can’t live in-repo).
 4. Run to green.
 5. Tighten limits + error messages, add one more “non-trivial” Python smoke case.
-

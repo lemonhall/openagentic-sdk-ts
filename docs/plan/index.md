@@ -7,6 +7,16 @@ This directory contains the project vision and a set of executable v1 feature pl
 - Vision + core design: `2026-01-27-vision-and-core-design.md`
 - Preflight checklist (before starting a vN iteration): `preflight-checklist.md`
 
+## Note (v13 pivot)
+
+As of **v13 (2026-01-28)**, the repo is pivoting away from:
+
+- WASI toolchains / bundles / registries (entire direction)
+- “official registry + signature enforced installs”
+- “same semantics across browser/server via WASI execution”
+
+See: `v13-index.md`.
+
 ## v2 plans (make it runnable)
 
 v1 delivered the core “tool-first + WASI + shadow workspace” primitives. v2 is about making the repo **actually run an agent end-to-end** against a real LLM backend (multi-turn, tool calling, streaming), in both Node/server and browser.
@@ -59,11 +69,15 @@ v9 is a convergence pass: make the repo’s **vision and defaults** match what a
 
 v10 makes the built-in “Bash” tool live up to its name: push the shell semantics toward **POSIX `sh`** (quoting, expansion order, redirects, pipes, exit code semantics, core builtins) and ship a pragmatic “minimal coreutils-like” command set so common scripts actually run in WASI and in the TS-native fallback.
 
+**Status:** abandoned as of v13 (2026-01-28); see `v13-index.md`.
+
 - v10 index: `v10-index.md`
 
 ## v11 plans (POSIX-ish `sh`: variables + field splitting + positional params)
 
 v11 closes the biggest remaining “POSIX `sh`” semantic gaps that still make real scripts behave surprisingly: a real shell variable model (export vs non-export), IFS field splitting, and positional parameters.
+
+**Status:** abandoned as of v13 (2026-01-28); see `v13-index.md`.
 
 - v11 index: `v11-index.md`
 
@@ -72,6 +86,15 @@ v11 closes the biggest remaining “POSIX `sh`” semantic gaps that still make 
 v12 makes `rg` (ripgrep) a first-class tool in the shell by targeting upstream ripgrep 15.1.0 behavior via a WASI bundle, with golden snapshots + integration fixtures to lock parity.
 
 - v12 index: `v12-index.md`
+
+## v13 plans (abandon WASI toolchains; go host-native on Node)
+
+v13 breaks the “implement endless Linux tools in WASM” loop by **abandoning WASI toolchains/bundles/registries**:
+
+- **Node/server:** run **host-native** commands under an OS sandbox (when available), operating on the shadow workspace dir.
+- **Browser:** keep a small, deterministic **TS-native** toolset over OPFS (no WASI execution).
+
+- v13 index: `v13-index.md`
 
 ## v1 feature plans
 

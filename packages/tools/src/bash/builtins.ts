@@ -292,7 +292,7 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
   if (cmd === "uname") {
     const flag = args[0] ?? "";
     if (flag && flag !== "-s") return { exitCode: 2, stdout: "", stderr: `uname: unsupported flag: ${asString(flag)}` };
-    const v = io.env.OPENAGENTIC_UNAME ?? "WASI";
+    const v = io.env.OPENAGENTIC_UNAME ?? "OpenAgentic";
     return { exitCode: 0, stdout: `${v}\n`, stderr: "" };
   }
 
@@ -540,7 +540,7 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
           "  -h, --help          Show help",
           "  --version           Show version",
           "Notes:",
-          "  This is a limited builtin. Enable WASI bundles for full ripgrep parity.",
+          "  This is a limited builtin (not full ripgrep).",
           "",
         ].join("\n") + "\n";
       return { exitCode: 0, stdout: help, stderr: "" };

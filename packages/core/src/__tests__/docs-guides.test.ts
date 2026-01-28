@@ -30,8 +30,8 @@ describe("docs/guide", () => {
     expect(v10Index).toContain("v10 Plans Index");
 
     const vision = await readText("docs/plan/2026-01-27-vision-and-core-design.md");
-    expect(vision).toContain("Status (as of v8");
-    expect(vision).toContain("POSIX");
+    expect(vision).toContain("Status (as of v13");
+    expect(vision).toContain("host-native");
 
     const guideReadme = await readText("docs/guide/README.md");
     expect(guideReadme).toContain("quickstart-node.md");
@@ -39,13 +39,12 @@ describe("docs/guide", () => {
     expect(guideReadme).toContain("docs/guide/tools/README.md");
 
     const quickNode = await readText("docs/guide/quickstart-node.md");
-    expect(quickNode).toContain("--no-wasi");
     expect(quickNode).toContain("OPENAI_BASE_URL");
-    expect(quickNode).toContain("--wasi-python");
+    expect(quickNode).toContain("host-native");
 
     const quickBrowser = await readText("docs/guide/quickstart-browser.md");
-    expect(quickBrowser.toLowerCase()).toContain("bundles base url");
-    expect(quickBrowser).toContain("/bundles/");
+    expect(quickBrowser).toContain("OPFS");
+    expect(quickBrowser).toContain("local proxy");
 
     const security = await readText("docs/guide/security.md");
     expect(security).toContain('credentials: "omit"');
@@ -55,15 +54,11 @@ describe("docs/guide", () => {
     expect(tools).toContain("Bash");
     expect(tools).toContain("WebFetch");
 
-    const pythonTool = await readText("docs/guide/tools/python.md");
-    expect(pythonTool).toContain("--wasi-python");
-
     const toolsOverview = await readText("docs/guide/tools.md");
     expect(toolsOverview).not.toContain("The demos do not enable them by default");
 
     const sandboxing = await readText("docs/guide/sandboxing.md");
-    expect(sandboxing).toContain("netFetch");
-    expect(sandboxing).toContain("wasmtime");
-    expect(sandboxing.toLowerCase()).toContain("not supported");
+    expect(sandboxing).toContain("parseSandboxConfig");
+    expect(sandboxing).toContain("createNativeRunner");
   });
 });

@@ -20,7 +20,8 @@ export type RunCliDeps = {
 import type { ModelProvider, SessionStore } from "@openagentic/sdk-core";
 import { JsonlSessionStore } from "@openagentic/sdk-core";
 import { OpenAIResponsesProvider } from "@openagentic/providers-openai";
-import { createNodeJsonlBackend } from "@openagentic/sdk-node";
+import { createNodeJsonlBackend, getSandboxBackend, parseSandboxConfig } from "@openagentic/sdk-node";
+import { LocalNativeRunner } from "@openagentic/native-runner";
 import type { Workspace } from "@openagentic/workspace";
 import type { Snapshot } from "@openagentic/workspace";
 import { computeChangeSet, snapshotWorkspace } from "@openagentic/workspace";
@@ -40,6 +41,40 @@ function getFlagValue(argv: string[], flag: string): string | null {
   return typeof v === "string" ? v : null;
 }
 
+function splitCsv(v: string | undefined): string[] {
+  return String(v ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function createNativeRunnerForShadowDir(shadowDir: string) {
+  const backendName = (process.env.OPENAGENTIC_SANDBOX_BACKEND ?? "none").trim() || "none";
+  const required = process.env.OPENAGENTIC_SANDBOX_REQUIRED === "1";
+
+  const cfg = parseSandboxConfig({
+    backend: backendName,
+    options: {
+      bwrapPath: process.env.OPENAGENTIC_BWRAP_PATH,
+      nsjailPath: process.env.OPENAGENTIC_NSJAIL_PATH,
+      sandboxExecPath: process.env.OPENAGENTIC_SANDBOX_EXEC_PATH,
+      network: process.env.OPENAGENTIC_BWRAP_NETWORK ?? process.env.OPENAGENTIC_SANDBOX_NETWORK,
+      roBinds: splitCsv(process.env.OPENAGENTIC_BWRAP_RO_BINDS ?? process.env.OPENAGENTIC_SANDBOX_RO_BINDS),
+      timeoutMs: process.env.OPENAGENTIC_JOBOBJECT_TIMEOUT_MS ? Number(process.env.OPENAGENTIC_JOBOBJECT_TIMEOUT_MS) : undefined,
+    },
+  });
+
+  const backend = getSandboxBackend(cfg.backend);
+  const r = backend.createNativeRunner({ config: cfg as any, shadowDir });
+  if (r) return r;
+  if (cfg.backend !== "none" && required) throw new Error(`demo-node: sandbox backend unavailable: ${cfg.backend}`);
+  if (cfg.backend !== "none") {
+    // eslint-disable-next-line no-console
+    console.warn(`demo-node: sandbox backend unavailable (${cfg.backend}); falling back to local runner`);
+  }
+  return new LocalNativeRunner({ shadowDir });
+}
+
 export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<RunCliResult> {
   const stdout = deps.stdout ?? process.stdout;
   const stderr = deps.stderr ?? process.stderr;
@@ -47,9 +82,6 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
   const baseUrlFlag = getFlagValue(argv, "--base-url");
   const projectDir = getFlagValue(argv, "--project");
   const once = getFlagValue(argv, "--once");
-  const enableWasiBash = !argv.includes("--no-wasi");
-  const enableWasiPython = argv.includes("--wasi-python") || process.env.OPENAGENTIC_WASI_PYTHON === "1";
-  const enableWasiNetFetch = argv.includes("--wasi-netfetch");
   if (once != null) {
     const injectedProvider = deps.provider as ModelProvider | undefined;
     const baseUrl = deps.baseUrl ?? baseUrlFlag ?? process.env.OPENAI_BASE_URL;
@@ -64,7 +96,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
     const apiKey = deps.apiKey ?? process.env.OPENAI_API_KEY;
     let sessionStore = deps.sessionStore as SessionStore | undefined;
     let workspace = deps.workspace as Workspace | undefined;
-    let wasiPreopenDir: string | undefined;
+    let shadowDir: string | undefined;
     let sessionId: string | undefined;
 
     if (!injectedProvider && !apiKey) {
@@ -79,14 +111,16 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
     if (!workspace) {
       if (!projectDir) throw new Error("runCli: workspace is required (pass deps.workspace) or provide --project");
       sessionId = await sessionStore.createSession();
-      const shadowDir = join(projectDir, ".openagentic", "shadow", sessionId);
-      await rm(shadowDir, { recursive: true, force: true });
-      await mkdir(shadowDir, { recursive: true });
-      const shadow = new LocalDirWorkspace(shadowDir);
+      const shadowDirPath = join(projectDir, ".openagentic", "shadow", sessionId);
+      await rm(shadowDirPath, { recursive: true, force: true });
+      await mkdir(shadowDirPath, { recursive: true });
+      const shadow = new LocalDirWorkspace(shadowDirPath);
       await importLocalDirToShadow({ realDir: projectDir, shadow });
       workspace = shadow;
-      wasiPreopenDir = shadowDir;
+      shadowDir = shadowDirPath;
     }
+
+    const nativeRunner = createNativeRunnerForShadowDir(shadowDir ?? join(projectDir ?? ".", ".openagentic", "shadow", sessionId ?? "x"));
 
     const { runtime } = await createDemoRuntime({
       sessionStore,
@@ -95,10 +129,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
       model,
       apiKey,
       systemPrompt: deps.systemPrompt,
-      enableWasiBash,
-      enableWasiPython,
-      enableWasiNetFetch,
-      wasiPreopenDir,
+      nativeRunner,
     });
 
     const renderer = createCliRenderer(stdout);
@@ -125,7 +156,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
   let sessionStore = deps.sessionStore as SessionStore | undefined;
   let workspace = deps.workspace as Workspace | undefined;
   let sessionId: string | undefined;
-  let wasiPreopenDir: string | undefined;
+  let shadowDir: string | undefined;
   let shadowForCommit: Workspace | null = null;
   let baseSnapshot: Snapshot | null = null;
 
@@ -141,16 +172,18 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
   if (!workspace) {
     if (!projectDir) throw new Error("runCli: workspace is required (pass deps.workspace) or provide --project");
     sessionId = await sessionStore.createSession();
-    const shadowDir = join(projectDir, ".openagentic", "shadow", sessionId);
-    await rm(shadowDir, { recursive: true, force: true });
-    await mkdir(shadowDir, { recursive: true });
-    const shadow = new LocalDirWorkspace(shadowDir);
+    const shadowDirPath = join(projectDir, ".openagentic", "shadow", sessionId);
+    await rm(shadowDirPath, { recursive: true, force: true });
+    await mkdir(shadowDirPath, { recursive: true });
+    const shadow = new LocalDirWorkspace(shadowDirPath);
     const imported = await importLocalDirToShadow({ realDir: projectDir, shadow });
     workspace = shadow;
     shadowForCommit = shadow;
     baseSnapshot = imported.baseSnapshot;
-    wasiPreopenDir = shadowDir;
+    shadowDir = shadowDirPath;
   }
+
+  const nativeRunner = createNativeRunnerForShadowDir(shadowDir ?? join(projectDir ?? ".", ".openagentic", "shadow", sessionId ?? "x"));
 
   const { runtime } = await createDemoRuntime({
     sessionStore,
@@ -159,10 +192,7 @@ export async function runCli(argv: string[], deps: RunCliDeps = {}): Promise<Run
     model,
     apiKey,
     systemPrompt: deps.systemPrompt,
-    enableWasiBash,
-    enableWasiPython,
-    enableWasiNetFetch,
-    wasiPreopenDir,
+    nativeRunner,
   });
   const renderer = createCliRenderer(stdout);
 

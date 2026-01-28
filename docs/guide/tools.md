@@ -14,7 +14,7 @@ For a full per-tool reference (inputs/outputs/examples), see: `docs/guide/tools/
 - `Edit` — precise string replace in a file
 - `Glob` — find files by glob pattern
 - `Grep` — search file contents by regex
-- `Bash` — restricted shell over the shadow workspace (pipes/redirection; not host bash)
+- `Bash` — shell over the shadow workspace (TS-native in browser; host-native in Node/server)
 - `WebFetch` — fetch an http(s) URL (cookies omitted; may be limited by browser CORS)
 - `TodoWrite` — write/update a TODO list (used for planning/UX)
 - `SlashCommand` — load `.claude/commands/<name>.md` from the shadow workspace
@@ -22,17 +22,10 @@ For a full per-tool reference (inputs/outputs/examples), see: `docs/guide/tools/
 
 ## Optional (opt-in)
 
-- `Python` — run Python code in a WASI runtime bundle (currently a minimal demo/stub bundle; opt-in in demos)
-
 Node demo only (requires a server-side key):
 
 - `WebSearch` — Tavily web search (requires `TAVILY_API_KEY`)
 
 ## Shell tools
 
-`Command` / `Shell` over WASI are implemented in the SDK and power the WASI-backed `Bash` tool in the demos (when enabled). They require:
-
-- a WASI runner (browser worker runner or server `wasmtime` runner)
-- signed bundles installed from an official bundle base URL / registry
-
-The TS-native tools remain available as a fallback.
+The browser demo’s `Bash` is a restricted TS-native shell. The Node demo’s `Bash` is host-native `bash` under a sandbox backend (when available). v13 treats “what exists” as an explicit contract and stops chasing “infinite distro parity”.

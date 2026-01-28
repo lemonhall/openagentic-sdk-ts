@@ -1,5 +1,7 @@
 # v3 Plans Index — “WASI Convergence” Slice
 
+> **Status:** ABANDONED as of v13 (2026-01-28). The shadow-workspace model remains, but v13 removes WASI toolchains/bundles/registries and uses host-native execution on Node/server and TS-native tools in the browser.
+
 > Goal of v3: make the **default** “Bash-like” tool experience run via **WASI modules** with the **same semantics** in browser and server, without breaking the v2 runnable agent slice.
 
 ## Why v3 exists

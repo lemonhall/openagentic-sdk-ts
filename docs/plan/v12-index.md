@@ -1,5 +1,7 @@
 # v12 Plans Index — Full `rg` (ripgrep) Parity
 
+> **Status:** ABANDONED as of v13 (2026-01-28). v13 removes WASI toolchains/bundles/registries; this v12 plan is kept for historical context.
+
 > Goal of v12: make `rg` in `BashTool` behave like upstream ripgrep **15.1.0** (CLI surface + behavior), so real-world scripts and developer workflows stop hitting “missing flag / different output / different exit code” traps.
 
 ## Spec (source of truth)
@@ -55,4 +57,3 @@ Keep the TS builtin only as a fallback for environments that explicitly disable 
 3. `v12-feature-02-rg-wiring-and-fallbacks.md`
 4. `v12-feature-03-rg-integration-tests.md`
 5. `v12-feature-04-rg-performance-and-scaling.md`
-

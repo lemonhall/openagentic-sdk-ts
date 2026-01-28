@@ -1,8 +1,11 @@
-import type { NativeExecInput, NativeExecResult, NativeRunner } from "@openagentic/native-runner";
 import { spawn } from "node:child_process";
-import { join } from "node:path";
+import { resolve } from "node:path";
 
-export type SandboxExecNetworkMode = "allow" | "deny";
+import type { NativeExecInput, NativeExecResult, NativeRunner } from "./types.js";
+
+export type LocalNativeRunnerOptions = {
+  shadowDir: string;
+};
 
 function concat(chunks: Uint8Array[]): Uint8Array {
   const total = chunks.reduce((n, c) => n + c.byteLength, 0);
@@ -15,50 +18,21 @@ function concat(chunks: Uint8Array[]): Uint8Array {
   return out;
 }
 
-function sbplQuote(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+function resolveWorkspaceCwd(shadowDir: string, cwd?: string): string {
+  const cwdRel = String(cwd ?? "").replace(/^\/+/, "");
+  if (cwdRel === "" || cwdRel === ".") return shadowDir;
+  if (cwdRel.includes("..")) throw new Error("LocalNativeRunner: cwd must be workspace-relative (no '..')");
+  const full = resolve(shadowDir, cwdRel);
+  const root = resolve(shadowDir);
+  if (full !== root && !full.startsWith(`${root}/`)) throw new Error("LocalNativeRunner: cwd escapes shadowDir");
+  return full;
 }
 
-export function buildSandboxExecProfile(options: { shadowDirHostPath: string; network: SandboxExecNetworkMode }): string {
-  const shadow = sbplQuote(options.shadowDirHostPath);
-  const allowNet = options.network === "allow";
-
-  return [
-    "(version 1)",
-    // Best-effort: sandbox-exec policies vary by macOS version. Keep this readable and explicit.
-    "(deny default)",
-    "(allow process*)",
-    // Allow reading basic system locations needed for executing host binaries.
-    '(allow file-read* (subpath "/System") (subpath "/usr") (subpath "/bin") (subpath "/sbin") (subpath "/private"))',
-    // Allow read/write only under the operator-provided shadow directory.
-    `(allow file-read* file-write* (subpath "${shadow}"))`,
-    allowNet ? "(allow network*)" : "(deny network*)",
-  ].join("\n");
-}
-
-export function buildSandboxExecNativeArgv(options: {
-  sandboxExecPath: string;
-  profile: string;
-  commandArgv: string[];
-}): { cmd: string; args: string[] } {
-  return { cmd: options.sandboxExecPath, args: ["-p", options.profile, "--", ...options.commandArgv] };
-}
-
-export type SandboxExecNativeRunnerOptions = {
-  sandboxExecPath?: string;
-  shadowDir: string;
-  network?: SandboxExecNetworkMode;
-};
-
-export class SandboxExecNativeRunner implements NativeRunner {
-  readonly sandboxExecPath: string;
+export class LocalNativeRunner implements NativeRunner {
   readonly shadowDir: string;
-  readonly network: SandboxExecNetworkMode;
 
-  constructor(options: SandboxExecNativeRunnerOptions) {
-    this.sandboxExecPath = options.sandboxExecPath ?? "sandbox-exec";
+  constructor(options: LocalNativeRunnerOptions) {
     this.shadowDir = options.shadowDir;
-    this.network = options.network ?? "deny";
   }
 
   async exec(input: NativeExecInput): Promise<NativeExecResult> {
@@ -69,16 +43,6 @@ export class SandboxExecNativeRunner implements NativeRunner {
     const maxStderr = input.limits?.maxStderrBytes ?? 1024 * 1024;
     const timeoutMs = input.limits?.timeoutMs ?? 60_000;
 
-    const profile = buildSandboxExecProfile({ shadowDirHostPath: this.shadowDir, network: this.network });
-    const argv = buildSandboxExecNativeArgv({
-      sandboxExecPath: this.sandboxExecPath,
-      profile,
-      commandArgv: input.argv,
-    });
-
-    const cwdRel = (input.cwd ?? "").replace(/^\/+/, "");
-    const cwd = cwdRel === "" || cwdRel === "." ? this.shadowDir : join(this.shadowDir, cwdRel);
-
     const startedAt = Date.now();
     const stdoutChunks: Uint8Array[] = [];
     const stderrChunks: Uint8Array[] = [];
@@ -87,8 +51,10 @@ export class SandboxExecNativeRunner implements NativeRunner {
     let timedOut = false;
     let signal: string | null = null;
 
-    const exitCode = await new Promise<number>((resolve, reject) => {
-      const cp = spawn(argv.cmd, argv.args, {
+    const cwd = resolveWorkspaceCwd(this.shadowDir, input.cwd);
+
+    const exitCode = await new Promise<number>((resolveP, reject) => {
+      const cp = spawn(input.argv[0]!, input.argv.slice(1), {
         stdio: ["pipe", "pipe", "pipe"],
         cwd,
         env: { ...process.env, ...(input.env ?? {}) },
@@ -108,9 +74,7 @@ export class SandboxExecNativeRunner implements NativeRunner {
         reject(e);
       });
 
-      if (input.stdin && input.stdin.byteLength > 0) {
-        cp.stdin.write(Buffer.from(input.stdin));
-      }
+      if (input.stdin && input.stdin.byteLength > 0) cp.stdin.write(Buffer.from(input.stdin));
       cp.stdin.end();
 
       cp.stdout.on("data", (buf: Buffer) => {
@@ -133,7 +97,7 @@ export class SandboxExecNativeRunner implements NativeRunner {
       cp.on("close", (code, sig) => {
         clearTimeout(t);
         signal = sig;
-        resolve(code ?? (timedOut ? 124 : 1));
+        resolveP(code ?? (timedOut ? 124 : 1));
       });
     });
 
@@ -148,9 +112,9 @@ export class SandboxExecNativeRunner implements NativeRunner {
       audits: [
         {
           kind: "native.exec",
-          cmd: argv.cmd,
-          argv: argv.args,
-          cwd: input.cwd,
+          cmd: input.argv[0]!,
+          argv: input.argv,
+          cwd,
           durationMs,
           timedOut,
           signal,
@@ -161,3 +125,4 @@ export class SandboxExecNativeRunner implements NativeRunner {
     };
   }
 }
+

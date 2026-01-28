@@ -22,21 +22,9 @@ Run against a local project directory (the agent operates on a shadow workspace 
 OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project .
 ```
 
-### WASI-backed `Bash`
+### `Bash` (Node/server)
 
-The Node demo enables the WASI-backed `Bash` tool by default (using signed bundles). Disable it to fall back to the TS-native `Bash` tool:
-
-```bash
-OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . --no-wasi
-```
-
-### WASI-backed `Python` (stub)
-
-The repo ships a **minimal** `lang-python@0.0.0` demo bundle (not full Python semantics). It is opt-in:
-
-```bash
-OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . --wasi-python
-```
+The Node demo runs `Bash` using host-native `bash` under a sandbox backend when available, operating on the shadow workspace (not your real directory).
 
 ### OpenAI-compatible providers (custom base URL)
 

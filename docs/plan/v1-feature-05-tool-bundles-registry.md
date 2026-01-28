@@ -1,5 +1,7 @@
 # v1-feature-05 — Tool Bundles & Registry
 
+> **Status:** ABANDONED as of v13 (2026-01-28). v13 removes the bundles/registry “distro” direction entirely and pivots to host-native execution on Node/server and TS-native tools in the browser (see `docs/plan/v13-index.md`).
+
 ## Goal
 
 Implement Tool Bundles (WASI modules + manifest) and installation/caching with integrity verification.
@@ -38,4 +40,3 @@ Create/modify (suggested):
 
 - Browser installs bundles at runtime and caches in OPFS.
 - Server loads bundles from a local cache directory.
-

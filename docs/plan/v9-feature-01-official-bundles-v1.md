@@ -1,5 +1,6 @@
 # v9 Feature 01: “Official Bundles” v1 (Layout, Serving, Mirror Story) (Implementation Plan)
 
+> **Status:** ABANDONED as of v13 (2026-01-28). The “official bundles / distro” direction is abandoned; v13 pivots to a pinned toolchain + finite `Bash` contract.
 > **Goal:** Make “official bundles” a first-class artifact with a stable on-disk layout, stable URLs, and clear trust/signature policy. Keep local dev easy; leave room for a future public mirror.
 
 ## Design options (pick one; v9 recommends Option A)

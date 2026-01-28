@@ -1,5 +1,7 @@
 # v9 Plans Index — Convergence Pass (Python, Bundles, Server netFetch, Release Hardening)
 
+> **Status:** ABANDONED as of v13 (2026-01-28). v13 removes WASI toolchains/bundles/registries and uses host-native execution on Node/server and TS-native tools in the browser.
+
 > Goal of v9: converge “vision ⇄ repo reality ⇄ default runnable paths” so a new user can run real workloads with minimal footguns, and remaining prototype-grade gaps are either shipped or explicitly scoped.
 
 ## Why v9 exists

@@ -8,7 +8,7 @@ import {
   snapshotWorkspace,
 } from "@openagentic/workspace";
 
-import { createBrowserAgent, resetBrowserWasiRunner } from "./agent.js";
+import { createBrowserAgent } from "./agent.js";
 import { createController } from "./controller.js";
 import { clearDirectoryHandle } from "./fs-utils.js";
 import { shouldSubmitOnKeydown } from "./composer.js";
@@ -18,7 +18,6 @@ import { decodeTextPreview } from "./changeset-preview.js";
 import { summarizeChangeSet } from "./changeset-model.js";
 import { formatChangeSetSummary, renderChangeList } from "./changeset-ui.js";
 import { createDemoSessionStore } from "./session-store.js";
-import { defaultBundleBaseUrlFromProxy } from "./url-defaults.js";
 
 import "./styles.css";
 
@@ -39,18 +38,6 @@ async function main(): Promise<void> {
         <label class="oaField">
           <div class="oaLabel">Model</div>
           <input id="model" class="oaInput" value="gpt-5.2" />
-        </label>
-        <label class="oaToggle">
-          <input id="wasiBash" type="checkbox" checked />
-          <span>WASI Bash</span>
-        </label>
-        <label class="oaToggle">
-          <input id="wasiPython" type="checkbox" />
-          <span>WASI Python (stub)</span>
-        </label>
-        <label class="oaToggle">
-          <input id="wasiNetFetch" type="checkbox" />
-          <span>WASI netFetch</span>
         </label>
         <div class="oaButtons">
           <button id="chooseDir" class="oaBtn">Choose Directory</button>
@@ -106,9 +93,6 @@ async function main(): Promise<void> {
 
   const proxyUrlEl = document.querySelector<HTMLInputElement>("#proxyUrl")!;
   const modelEl = document.querySelector<HTMLInputElement>("#model")!;
-  const wasiBashEl = document.querySelector<HTMLInputElement>("#wasiBash")!;
-  const wasiPythonEl = document.querySelector<HTMLInputElement>("#wasiPython")!;
-  const wasiNetFetchEl = document.querySelector<HTMLInputElement>("#wasiNetFetch")!;
   const statusEl = document.querySelector<HTMLDivElement>("#status")!;
   const transcriptEl = document.querySelector<HTMLDivElement>("#transcript")!;
   const filesEl = document.querySelector<HTMLDivElement>("#files")!;
@@ -146,11 +130,7 @@ async function main(): Promise<void> {
     return JSON.stringify({
       model: modelEl.value.trim() || "gpt-5.2",
       providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
-      enableWasiBash: wasiBashEl.checked,
-      enableWasiPython: wasiPythonEl.checked,
-      enableWasiNetFetch: wasiNetFetchEl.checked,
-      wasiBundleBaseUrl: defaultBundleBaseUrlFromProxy(proxyUrlEl.value),
-      wasiPreopenDir: OPFS_DIR,
+      opfsDir: OPFS_DIR,
     });
   }
 
@@ -385,11 +365,6 @@ async function main(): Promise<void> {
         workspace,
         model: modelEl.value.trim() || "gpt-5.2",
         providerBaseUrl: proxyUrlEl.value.trim() || "http://localhost:8787/v1",
-        enableWasiBash: wasiBashEl.checked,
-        enableWasiPython: wasiPythonEl.checked,
-        enableWasiNetFetch: wasiNetFetchEl.checked,
-        wasiBundleBaseUrl: defaultBundleBaseUrlFromProxy(proxyUrlEl.value),
-        wasiPreopenDir: OPFS_DIR,
       });
       runtimeCache = { key, runtime: agent.runtime, refreshFiles };
       return { runtime: agent.runtime, refreshFiles };
@@ -459,7 +434,6 @@ async function main(): Promise<void> {
       });
       setStatus("snapshotting...");
       baseSnapshot = await snapshotWorkspace(workspace);
-      resetBrowserWasiRunner();
       invalidateRuntime();
       await refreshFiles();
       setStatus("imported to OPFS");
@@ -489,7 +463,6 @@ async function main(): Promise<void> {
       if (!opfsDemoDir || !workspace) throw new Error("OPFS workspace init failed");
       await clearDirectoryHandle(opfsDemoDir as any);
       baseSnapshot = null;
-      resetBrowserWasiRunner();
       invalidateRuntime();
       await refreshFiles();
       setStatus("OPFS cleared");

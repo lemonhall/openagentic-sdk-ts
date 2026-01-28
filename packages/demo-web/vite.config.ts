@@ -8,7 +8,6 @@ export default defineConfig({
     alias: {
       // Use workspace source directly so demo reflects latest changes without rebuilding dist outputs.
       "@openagentic/tools": resolve(fileURLToPath(new URL(".", import.meta.url)), "../tools/src/index.ts"),
-      "@openagentic/wasi-runner-web": resolve(fileURLToPath(new URL(".", import.meta.url)), "../wasi-runner-web/src/index.ts"),
     },
   },
 });

@@ -4,32 +4,30 @@
 
 Tools operate on a *shadow workspace* (in-memory on Node demos, OPFS in browser demos). The real filesystem is only modified on explicit commit actions.
 
-## Outer sandboxing (server hardening)
+## Server sandboxing (hardening)
 
-WASI is the portable baseline sandbox. On the server you can optionally add a second isolation boundary around the WASI runner process (“sandbox stacking”).
+As of v13 (2026-01-28), this repo runs tools on Node/server as **host-native processes**. Hardening comes from wrapping execution with an OS sandbox backend (when available) and restricting the filesystem view to the shadow workspace directory.
 
 See `docs/guide/sandboxing.md` for the full model.
 
 ### Bubblewrap (`bwrap`) (Linux-only)
 
-The Node demo can run `wasmtime` under Bubblewrap:
+The Node demo can run host tools under Bubblewrap:
 
-- Enable: `OPENAGENTIC_PROCESS_SANDBOX=bwrap`
-- Require it (fail fast if unavailable): `OPENAGENTIC_PROCESS_SANDBOX_REQUIRED=1`
+- Enable: `OPENAGENTIC_SANDBOX_BACKEND=bwrap`
+- Require it (fail fast if unavailable): `OPENAGENTIC_SANDBOX_REQUIRED=1`
 - Override binary: `OPENAGENTIC_BWRAP_PATH=bwrap`
 - Network policy: `OPENAGENTIC_BWRAP_NETWORK=allow|deny`
 - Read-only system binds (comma-separated): `OPENAGENTIC_BWRAP_RO_BINDS=/usr,/bin,/lib,/lib64,/etc`
 
-If Bubblewrap is not available (or not supported on the current OS), the demo prints a warning and continues without the outer sandbox unless it is required.
+If Bubblewrap is not available (or not supported on the current OS), the demo prints a warning and continues without the sandbox unless it is required.
 
-## Native engine (Linux-only) tradeoffs
-
-If you opt into `OPENAGENTIC_TOOL_ENGINE=native`, the `Bash` tool runs host-native commands under Bubblewrap instead of running signed WASI bundles.
+## Native engine tradeoffs
 
 Implications:
 
-- Tool availability/behavior depends on the host (less reproducible than bundles).
-- Isolation relies on Bubblewrap policy (mounts, network namespace, limits).
+- Tool availability/behavior depends on the host (less reproducible than vendored toolchains).
+- Isolation relies on sandbox policy (mounts, network namespace, limits).
 - Prefer `OPENAGENTIC_BWRAP_NETWORK=deny` unless the workflow requires network.
 
 ## Network safety
@@ -52,12 +50,6 @@ This prevents cookies from being sent automatically.
 When the runtime’s `ToolContext` includes an `emitEvent(ev)` hook, network activity can be recorded in the session event log via:
 
 - `net.fetch` (URL, status, bytes, truncated, duration)
-
-For WASI modules, the web runner returns per-call audits via `WasiExecResult.netFetchAudits`, and the `Command` tool can forward those into `net.fetch` events.
-
-### Sandbox auditing (server)
-
-When `wasmtime` is wrapped by an outer sandbox (e.g. Bubblewrap), `WasmtimeWasiRunner.execModule()` returns `WasiExecResult.sandboxAudits` describing the wrapper and the wrapped invocation (with host-path redaction).
 
 ## API keys
 

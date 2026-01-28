@@ -1,5 +1,7 @@
 # v4 Plans Index — “WASI Complete” Slice
 
+> **Status:** ABANDONED as of v13 (2026-01-28). The shadow-workspace model remains, but v13 removes WASI toolchains/bundles/registries and uses host-native execution on Node/server and TS-native tools in the browser.
+
 > Goal of v4: close the remaining gaps in the original “same-semantics WASI runner + shadow workspace” vision so the **default** tool experience is WASI-backed, portable across browser + server, and safe-by-default (official registry only, signed bundles).
 
 ## Why v4 exists
@@ -41,4 +43,3 @@ v4 makes these items real and makes the WASI path the default (with safe fallbac
 
 - v4 intentionally reuses the v3 documents as historical context, but the v4 plans are the authoritative “do it now” execution set.
 - Each feature must follow the `$tashan-development-loop` discipline (TDD + evidence + commit/push per completed plan).
-

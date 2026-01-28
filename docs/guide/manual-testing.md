@@ -4,7 +4,7 @@
 
 ```bash
 pnpm install
-OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . [--wasi]
+OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project .
 ```
 
 Try prompts that trigger tools:

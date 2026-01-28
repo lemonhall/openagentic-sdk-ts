@@ -1,5 +1,7 @@
 # v11 Plans Index — POSIX-ish `sh` Semantics: Variables + Field Splitting + Positional Params
 
+> **Status:** ABANDONED as of v13 (2026-01-28). v13 stops pursuing a WASI “distro/shell parity” path and instead uses host-native execution on Node/server and TS-native tools in the browser.
+
 > Goal of v11: close the biggest remaining POSIX `sh` gaps that make real scripts behave “surprisingly”: **variable scoping (shell vars vs env)**, **field splitting (IFS)**, and **positional parameters**.
 
 ## Why v11 exists (gap review vs POSIX `sh`)

@@ -1,6 +1,7 @@
 # v8 Feature 05: Official Bundles Hosting (Local Proxy + Future Public Mirror) (Implementation Plan)
 
 > **For Codex:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task.  
+> **Status:** ABANDONED as of v13 (2026-01-28). The “official bundles hosting / mirror story” direction is abandoned; v13 pivots to a pinned toolchain + finite `Bash` contract.
 > **Goal:** Make it easy to run the browser demo without a local “sample bundle” path by serving signed official bundles over HTTP from the existing local proxy.
 
 **Architecture:**
@@ -158,4 +159,3 @@ git add docs/guide packages/core/src/__tests__/docs-guides.test.ts
 git commit -m "docs: explain official bundles hosting and defaults"
 git push
 ```
-

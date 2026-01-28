@@ -3,8 +3,7 @@
 一个 **tool-first（工具优先）** 的 Agent SDK 运行时，目标是在以下环境里保持尽可能一致的语义：
 
 - 浏览器（OPFS 影子工作区）
-- WASM/WASI 运行时
-- 服务器（可使用 `wasmtime` 作为 WASI host）
+- 服务器（在沙盒内执行宿主机原生命令）
 
 ![OpenAgentic Demo 截图](./screenshot.png)
 
@@ -18,7 +17,7 @@
 
 ## 当前状态
 
-- v1：核心原语（events/sessions/tools/workspace/WASI runner）
+- v1：核心原语（events/sessions/tools/workspace）
 - v2：可运行的 demo + 指南（Node + Browser）
 
 ## 快速开始（Node）
@@ -61,9 +60,10 @@ pnpm -C packages/demo-web dev
 
 - `packages/core`：`@openagentic/sdk-core`（事件/会话/工具注册与执行/AgentRuntime/LLM 类型）
 - `packages/providers-openai`：OpenAI Responses provider（JSON + SSE streaming）
-- `packages/tools`：工具实现（workspace 文件工具 + `Bash`；WASI `Shell`/`Command` 在 demo 里用于 WASI-backed `Bash`）
+- `packages/tools`：工具实现（workspace 文件工具 + `Bash`）
 - `packages/workspace`：影子工作区（Memory/OPFS）+ import/commit 辅助
 - `packages/workspace/node`：Node-only 的真实目录工作区（LocalDirWorkspace）
+- `packages/native-runner`：宿主机原生命令执行（可选用 Bubblewrap 等沙盒后端）
 - `packages/demo-node`：可运行的 Node demo（交互式）
 - `packages/demo-proxy`：浏览器 demo 的本地 OpenAI 代理（CORS + Key 隔离）
 - `packages/demo-web`：可运行的浏览器 demo（Vite）
@@ -73,6 +73,13 @@ pnpm -C packages/demo-web dev
 - 指南与 Quickstarts：`docs/guide/README.md`
 - 项目愿景与核心设计：`docs/plan/2026-01-27-vision-and-core-design.md`
 - v1/v2 执行计划索引：`docs/plan/index.md`
+- v13 计划（工具链简化）：`docs/plan/v13-index.md`
+
+## `Bash` 沙盒（有限能力）
+
+`Bash` 始终运行在 **shadow workspace** 上，而不是宿主机文件系统。
+
+从 v13（2026-01-28）开始，本仓库 **放弃 WASI 工具链 / bundles / registry**：Node/server 走“在沙盒内执行宿主机原生命令”，浏览器 demo 则只保留 TS-native 工具。详见：`docs/plan/v13-index.md`。
 
 ## 开发
 

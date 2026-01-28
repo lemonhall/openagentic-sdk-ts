@@ -1,5 +1,7 @@
 # v12 Feature 01: WASI `rg` Bundle (ripgrep 15.1.0)
 
+> **Status:** ABANDONED as of v13 (2026-01-28). v13 removes WASI toolchains/bundles/registries; this plan is kept for historical context.
+
 ## Goal
 
 Ship the real ripgrep `rg` as a WASI module so we get full CLI surface and behavior without re-implementing it in TypeScript.
@@ -41,4 +43,3 @@ If we decide to ship decompression helpers, that will be a separate v12 feature 
 4. Ship:
    - `git commit -m "v12: add rg WASI bundle"`
    - `git push`
-

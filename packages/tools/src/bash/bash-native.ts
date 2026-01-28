@@ -19,7 +19,7 @@ function decodeUtf8(bytes: Uint8Array): string {
 export class NativeBashTool implements Tool {
   readonly name = "Bash";
   readonly description =
-    "Run host-native bash inside a sandboxed shadow workspace (Linux-only when used with Bubblewrap). Supports full bash syntax (pipes/redirection).";
+    "Run host-native bash inside a sandboxed shadow workspace (backend-dependent). Supports full bash syntax (pipes/redirection).";
   readonly inputSchema = {
     type: "object",
     properties: {

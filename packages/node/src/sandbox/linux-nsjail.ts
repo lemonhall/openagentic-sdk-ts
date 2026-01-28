@@ -1,25 +1,13 @@
 import type { NativeExecInput, NativeExecResult, NativeRunner } from "@openagentic/native-runner";
-import type { ProcessSandbox, ProcessSandboxCommand } from "@openagentic/wasi-runner-wasmtime";
 import { spawn } from "node:child_process";
 
 export type NsjailNetworkMode = "allow" | "deny";
 
-export type NsjailProcessSandboxOptions = {
-  nsjailPath?: string;
-  network?: NsjailNetworkMode;
-  roBinds?: string[];
-  /**
-   * When mounts include this `label`, the wrapper will set `--cwd` to its `guestPath`.
-   */
-  defaultCwdLabel?: string;
-};
-
-function defaultOptions(): Required<Pick<NsjailProcessSandboxOptions, "nsjailPath" | "network" | "roBinds" | "defaultCwdLabel">> {
+function defaultOptions(): Required<{ nsjailPath: string; network: NsjailNetworkMode; roBinds: string[] }> {
   return {
     nsjailPath: "nsjail",
     network: "deny",
     roBinds: ["/usr", "/bin", "/lib", "/lib64", "/etc"],
-    defaultCwdLabel: "shadow-workspace",
   };
 }
 
@@ -39,40 +27,6 @@ function toWorkspaceCwd(rel: string | undefined): string {
   if (cwdRel === "" || cwdRel === ".") return "/workspace";
   if (cwdRel.startsWith("workspace/")) return `/${cwdRel}`;
   return `/workspace/${cwdRel}`;
-}
-
-export function buildNsjailArgv(options: {
-  nsjailPath: string;
-  network: NsjailNetworkMode;
-  roBinds: string[];
-  command: ProcessSandboxCommand;
-  defaultCwdLabel: string;
-}): { cmd: string; args: string[] } {
-  const mounts = options.command.mounts ?? [];
-
-  const args: string[] = ["--mode", "o", "--quiet"];
-
-  if (options.network === "allow") {
-    args.push("--disable_clone_newnet");
-  }
-
-  const roBinds = [...options.roBinds].filter(Boolean).sort();
-  for (const p of roBinds) {
-    args.push("--bindmount_ro", `${p}:${p}`);
-  }
-
-  const orderedMounts = [...mounts].sort((a, b) => a.guestPath.localeCompare(b.guestPath));
-  for (const m of orderedMounts) {
-    args.push(m.mode === "ro" ? "--bindmount_ro" : "--bindmount", `${m.hostPath}:${m.guestPath}`);
-  }
-
-  const cwdMount = mounts.find((m) => m.label === options.defaultCwdLabel);
-  if (cwdMount) {
-    args.push("--cwd", cwdMount.guestPath);
-  }
-
-  args.push("--", options.command.cmd, ...options.command.args);
-  return { cmd: options.nsjailPath, args };
 }
 
 export function buildNsjailNativeArgv(options: {
@@ -100,24 +54,6 @@ export function buildNsjailNativeArgv(options: {
   const cwd = toWorkspaceCwd(options.cwd);
   args.push("--bindmount", `${options.shadowDir}:/workspace`, "--cwd", cwd, "--", ...options.commandArgv);
   return { cmd: options.nsjailPath, args };
-}
-
-export function createNsjailProcessSandbox(opts: NsjailProcessSandboxOptions = {}): ProcessSandbox {
-  const options = { ...defaultOptions(), ...opts };
-
-  return {
-    name: "nsjail",
-    wrap(command: ProcessSandboxCommand) {
-      const argv = buildNsjailArgv({
-        nsjailPath: options.nsjailPath,
-        network: options.network,
-        roBinds: options.roBinds,
-        command,
-        defaultCwdLabel: options.defaultCwdLabel,
-      });
-      return { cmd: argv.cmd, args: argv.args, env: command.env, cwd: command.cwd };
-    },
-  };
 }
 
 export type NsjailNativeRunnerOptions = {

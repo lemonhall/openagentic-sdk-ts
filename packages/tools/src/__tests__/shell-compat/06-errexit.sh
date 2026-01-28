@@ -1,1 +1,0 @@
-set -e; false; echo after
