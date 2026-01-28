@@ -1,7 +1,7 @@
 import type { Workspace } from "@openagentic/workspace";
 
 import { parseScript } from "./parser.js";
-import type { PipelineNode, ScriptNode, SequenceNode, WordToken } from "./parser.js";
+import type { PipelineNode, Redir, ScriptNode, SequenceNode, WordToken } from "./parser.js";
 
 export type ShellExecOptions = {
   env?: Record<string, string>;
@@ -170,6 +170,44 @@ export async function execSequence(
   const state = { cwd: opts.cwd ?? "", lastExitCode: opts.lastExitCode ?? 0 };
   const { runCommand, workspace } = deps;
 
+  const applyOutputRedirs = async (
+    redirs: Redir[],
+    out0: { stdout: string; stderr: string },
+    ctx: { cwd: string; lastExitCode: number },
+  ): Promise<{ stdout: string; stderr: string }> => {
+    let stdout = out0.stdout;
+    let stderr = out0.stderr;
+
+    for (const r of redirs) {
+      if (r.kind === "errToOut") {
+        stdout += stderr;
+        stderr = "";
+        continue;
+      }
+
+      if (r.kind === "out" || r.kind === "append" || r.kind === "err" || r.kind === "errAppend") {
+        const [p0] = await tokenToWords(r.path, env, workspace, ctx.cwd, ctx.lastExitCode, runCommand);
+        const data = new TextEncoder().encode(r.kind === "out" || r.kind === "append" ? stdout : stderr);
+
+        const isAppend = r.kind === "append" || r.kind === "errAppend";
+        if (isAppend) {
+          const existing = await workspace.readFile(p0).catch(() => new Uint8Array());
+          const combined = new Uint8Array(existing.byteLength + data.byteLength);
+          combined.set(existing, 0);
+          combined.set(data, existing.byteLength);
+          await workspace.writeFile(p0, combined);
+        } else {
+          await workspace.writeFile(p0, data);
+        }
+
+        if (r.kind === "out" || r.kind === "append") stdout = "";
+        else stderr = "";
+      }
+    }
+
+    return { stdout, stderr };
+  };
+
   const runPipeline = async (pipeline: PipelineNode): Promise<ShellExecResult> => {
     let stdin: string | undefined = opts.stdin;
     let lastStdout = "";
@@ -178,42 +216,45 @@ export async function execSequence(
 
     for (let i = 0; i < pipeline.commands.length; i++) {
       const cmd = pipeline.commands[i];
+      const preExit = state.lastExitCode;
 
       try {
         if (cmd.subshell) {
           // Apply redirects for the subshell "command".
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
-            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode, runCommand);
+            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, preExit, runCommand);
             const bytes = await workspace.readFile(p0);
             stdin = new TextDecoder().decode(bytes);
           }
 
           const out = await execSequence(
             cmd.subshell,
-            { env, cwd: state.cwd, stdin, lastExitCode: state.lastExitCode },
+            { env, cwd: state.cwd, stdin, lastExitCode: preExit },
             { runCommand, workspace },
           );
           lastExit = Number(out.exitCode ?? 0);
-          lastStdout = String(out.stdout ?? "");
-          lastStderr = String(out.stderr ?? "");
+          const after = await applyOutputRedirs(cmd.redirs, { stdout: String(out.stdout ?? ""), stderr: String(out.stderr ?? "") }, { cwd: state.cwd, lastExitCode: preExit });
+          lastStdout = after.stdout;
+          lastStderr = after.stderr;
           stdin = lastStdout;
           state.lastExitCode = lastExit;
         } else {
-          const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd, state.lastExitCode, runCommand);
+          const argv = await tokensToArgv(cmd.argv, env, workspace, state.cwd, preExit, runCommand);
 
           // Apply input redirection on first command only (v1 simplification).
           for (const r of cmd.redirs) {
             if (r.kind !== "in") continue;
-            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode, runCommand);
+            const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, preExit, runCommand);
             const bytes = await workspace.readFile(p0);
             stdin = new TextDecoder().decode(bytes);
           }
 
           const out = await runCommand(argv, { env, cwd: state.cwd, stdin }, { workspace });
           lastExit = Number(out.exitCode ?? 0);
-          lastStdout = String(out.stdout ?? "");
-          lastStderr = String(out.stderr ?? "");
+          const after = await applyOutputRedirs(cmd.redirs, { stdout: String(out.stdout ?? ""), stderr: String(out.stderr ?? "") }, { cwd: state.cwd, lastExitCode: preExit });
+          lastStdout = after.stdout;
+          lastStderr = after.stderr;
           if (typeof out.cwd === "string") state.cwd = out.cwd;
           stdin = lastStdout;
           state.lastExitCode = lastExit;
@@ -221,30 +262,13 @@ export async function execSequence(
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         lastExit = 127;
-        lastStdout = "";
-        lastStderr = err.message;
+        const after = await applyOutputRedirs(cmd.redirs, { stdout: "", stderr: err.message }, { cwd: state.cwd, lastExitCode: preExit });
+        lastStdout = after.stdout;
+        lastStderr = after.stderr;
         state.lastExitCode = lastExit;
         // If a pipeline step fails to start (e.g., unknown command), stop the pipeline.
         break;
       }
-    }
-
-    // Apply output redirection from the last command.
-    const last = pipeline.commands.at(-1)!;
-    for (const r of last.redirs) {
-      if (r.kind !== "out" && r.kind !== "append") continue;
-      const [p0] = await tokenToWords(r.path, env, workspace, state.cwd, state.lastExitCode, runCommand);
-      const data = new TextEncoder().encode(lastStdout);
-      if (r.kind === "append") {
-        const existing = await workspace.readFile(p0).catch(() => new Uint8Array());
-        const combined = new Uint8Array(existing.byteLength + data.byteLength);
-        combined.set(existing, 0);
-        combined.set(data, existing.byteLength);
-        await workspace.writeFile(p0, combined);
-      } else {
-        await workspace.writeFile(p0, data);
-      }
-      lastStdout = "";
     }
 
     return { exitCode: lastExit, stdout: lastStdout, stderr: lastStderr };

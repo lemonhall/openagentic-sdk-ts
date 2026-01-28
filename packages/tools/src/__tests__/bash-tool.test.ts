@@ -160,6 +160,34 @@ describe("BashTool (workspace-native)", () => {
     expect(out.exit_code).toBe(0);
     expect(out.stdout).toBe("hi\n");
   });
+
+  it("supports stderr redirect '2>'", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "grep 2>err.txt || true; cat err.txt" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stderr).toBe("");
+    expect(out.stdout).toBe("grep: pattern required");
+  });
+
+  it("supports stderr-to-stdout redirect '2>&1' for piping", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "grep 2>&1 | cat" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stderr).toBe("");
+    expect(out.stdout).toBe("grep: pattern required");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {

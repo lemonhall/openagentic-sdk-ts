@@ -1,8 +1,10 @@
 export type WordToken = { kind: "word"; value: string; quote: "none" | "single" | "double" | "mixed" };
-export type OpToken = { kind: "op"; value: "(" | ")" | "|" | "&&" | "||" | "<" | ">" | ">>" | ";" };
+export type OpToken = { kind: "op"; value: "(" | ")" | "|" | "&&" | "||" | "<" | ">" | ">>" | "2>" | "2>>" | "2>&1" | ";" };
 export type Token = WordToken | OpToken;
 
-export type Redir = { kind: "in" | "out" | "append"; path: WordToken };
+export type Redir =
+  | { kind: "in" | "out" | "append" | "err" | "errAppend"; path: WordToken }
+  | { kind: "errToOut" };
 
 export type CommandNode = {
   argv: WordToken[];
@@ -214,6 +216,21 @@ export function tokenize(script: string): Token[] {
     }
 
     // operators (longest first)
+    if (s.startsWith("2>&1", i)) {
+      out.push({ kind: "op", value: "2>&1" });
+      i += 4;
+      continue;
+    }
+    if (s.startsWith("2>>", i)) {
+      out.push({ kind: "op", value: "2>>" });
+      i += 3;
+      continue;
+    }
+    if (s.startsWith("2>", i)) {
+      out.push({ kind: "op", value: "2>" });
+      i += 2;
+      continue;
+    }
     if (s.startsWith("&&", i)) {
       out.push({ kind: "op", value: "&&" });
       i += 2;
@@ -254,12 +271,25 @@ export function parseScript(script: string): ScriptNode {
       while (idx < toks.length) {
         const t = peek();
         if (t.kind !== "op") break;
-        if (t.value !== "<" && t.value !== ">" && t.value !== ">>") break;
+        if (t.value !== "<" && t.value !== ">" && t.value !== ">>" && t.value !== "2>" && t.value !== "2>>" && t.value !== "2>&1") break;
         const op = take() as OpToken;
+        if (op.value === "2>&1") {
+          redirs.push({ kind: "errToOut" });
+          continue;
+        }
         const next = take() as Token | undefined;
         if (!next || next.kind !== "word") throw new Error("Shell: expected path after redirect");
         redirs.push({
-          kind: op.value === "<" ? "in" : op.value === ">" ? "out" : "append",
+          kind:
+            op.value === "<"
+              ? "in"
+              : op.value === ">"
+                ? "out"
+                : op.value === ">>"
+                  ? "append"
+                  : op.value === "2>"
+                    ? "err"
+                    : "errAppend",
           path: next as WordToken,
         });
       }
