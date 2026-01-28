@@ -20,7 +20,15 @@ export type ShellCommandResult = ShellExecResult & { cwd?: string };
 
 export type ShellCommandRunner = (
   argv: string[],
-  io: { env: Record<string, string>; vars: Record<string, string>; exports: Set<string>; positional: string[]; cwd: string; stdin?: string },
+  io: {
+    env: Record<string, string>;
+    vars: Record<string, string>;
+    exports: Set<string>;
+    positional: string[];
+    options: { errexit: boolean; nounset: boolean };
+    cwd: string;
+    stdin?: string;
+  },
   deps: { workspace: Workspace },
 ) => Promise<ShellCommandResult>;
 
@@ -29,6 +37,7 @@ type ShellState = {
   env: Record<string, string>;
   exports: Set<string>;
   positional: string[];
+  options: { errexit: boolean; nounset: boolean };
   cwd: string;
   lastExitCode: number;
 };
@@ -48,6 +57,7 @@ function cloneState(s: ShellState): ShellState {
     env: { ...s.env },
     exports: new Set(s.exports),
     positional: [...s.positional],
+    options: { ...s.options },
     cwd: s.cwd,
     lastExitCode: s.lastExitCode,
   };
@@ -402,7 +412,15 @@ async function execSequenceWithState(
         }
         let out: ShellCommandResult;
         try {
-          const io = { env: state.env, vars: state.vars, exports: state.exports, positional: state.positional, cwd: state.cwd, stdin };
+          const io = {
+            env: state.env,
+            vars: state.vars,
+            exports: state.exports,
+            positional: state.positional,
+            options: state.options,
+            cwd: state.cwd,
+            stdin,
+          };
           out = await runCommand(argv, io, { workspace });
           state.positional = io.positional;
         } finally {
@@ -459,6 +477,7 @@ async function execSequenceWithState(
       stderr += out.stderr;
       exitCode = out.exitCode;
       state.lastExitCode = out.exitCode;
+      if (state.options.errexit && out.exitCode !== 0 && seq.tail.length === 0) break;
     }
   } catch (e) {
     if (e instanceof ShellExit) return { exitCode: e.code, stdout, stderr };
@@ -479,6 +498,7 @@ export async function execSequence(
     env: { ...initEnv },
     exports: new Set(Object.keys(initEnv)),
     positional: [],
+    options: { errexit: false, nounset: false },
     cwd: opts.cwd ?? "",
     lastExitCode: opts.lastExitCode ?? 0,
   };

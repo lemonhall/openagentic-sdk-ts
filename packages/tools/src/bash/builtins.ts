@@ -7,6 +7,7 @@ export type BuiltinIo = {
   vars: Record<string, string>;
   exports: Set<string>;
   positional: string[];
+  options: { errexit: boolean; nounset: boolean };
   cwd: string;
   stdin?: string;
 };
@@ -231,8 +232,27 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
 
   if (cmd === "set") {
     if (args.length === 0) return { exitCode: 0, stdout: "", stderr: "" };
-    if (args[0] !== "--") return { exitCode: 2, stdout: "", stderr: "set: only '--' is supported (v11)" };
-    io.positional = args.slice(1);
+    let i = 0;
+    while (i < args.length) {
+      const a0 = args[i] ?? "";
+      if (a0 === "--") {
+        io.positional = args.slice(i + 1);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+      if (a0.startsWith("-") || a0.startsWith("+")) {
+        const enable = a0[0] === "-";
+        const flags = a0.slice(1);
+        if (!flags) return { exitCode: 2, stdout: "", stderr: "set: invalid option" };
+        for (const f of flags) {
+          if (f === "e") io.options.errexit = enable;
+          else if (f === "u") io.options.nounset = enable;
+          else return { exitCode: 2, stdout: "", stderr: `set: unsupported option: ${f}` };
+        }
+        i++;
+        continue;
+      }
+      return { exitCode: 2, stdout: "", stderr: "set: only flags and '--' are supported (v11)" };
+    }
     return { exitCode: 0, stdout: "", stderr: "" };
   }
 
