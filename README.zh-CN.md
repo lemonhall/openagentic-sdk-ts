@@ -61,7 +61,7 @@ pnpm -C packages/demo-web dev
 
 - `packages/core`：`@openagentic/sdk-core`（事件/会话/工具注册与执行/AgentRuntime/LLM 类型）
 - `packages/providers-openai`：OpenAI Responses provider（JSON + SSE streaming）
-- `packages/tools`：工具实现（v2 demo 默认启用 workspace 文件工具；WASI Shell/Command 暂不默认开启）
+- `packages/tools`：工具实现（workspace 文件工具 + `Bash`；WASI `Shell`/`Command` 在 demo 里用于 WASI-backed `Bash`）
 - `packages/workspace`：影子工作区（Memory/OPFS）+ import/commit 辅助
 - `packages/workspace/node`：Node-only 的真实目录工作区（LocalDirWorkspace）
 - `packages/demo-node`：可运行的 Node demo（交互式）

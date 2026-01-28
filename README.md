@@ -73,7 +73,7 @@ More details: `docs/guide/security.md`
 
 - `packages/core` (`@openagentic/sdk-core`): events, sessions, tool registry/runner, agent runtime, LLM provider types
 - `packages/providers-openai` (`@openagentic/providers-openai`): OpenAI Responses API provider (JSON + SSE streaming)
-- `packages/tools` (`@openagentic/tools`): tool implementations (workspace file tools; WASI Command/Shell exist but demos keep them off by default)
+- `packages/tools` (`@openagentic/tools`): tool implementations (workspace file tools + `Bash`; WASI `Command`/`Shell` power WASI-backed `Bash` in demos)
 - `packages/workspace` (`@openagentic/workspace`): shadow workspace backends (Memory/OPFS) + import/commit helpers
 - `packages/workspace/node` (`@openagentic/workspace/node`): Node-only workspace (LocalDirWorkspace)
 - `packages/wasi-runner*`: WASI runners (web + wasmtime) and netfetch policy

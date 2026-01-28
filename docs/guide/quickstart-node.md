@@ -22,12 +22,12 @@ Run against a local project directory (the agent operates on a shadow workspace 
 OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project .
 ```
 
-### WASI-backed `Bash` (preview)
+### WASI-backed `Bash`
 
-Enable a WASI backend for the `Bash` tool (currently uses the local sample `core-utils` bundle: `echo`, `cat`, `grep`):
+The Node demo enables the WASI-backed `Bash` tool by default (using signed bundles). Disable it to fall back to the TS-native `Bash` tool:
 
 ```bash
-OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . --wasi
+OPENAI_API_KEY=... pnpm -C packages/demo-node start -- --project . --no-wasi
 ```
 
 ### OpenAI-compatible providers (custom base URL)
@@ -37,6 +37,12 @@ If your provider uses a non-OpenAI domain but is API-compatible, set `OPENAI_BAS
 ```bash
 OPENAI_API_KEY=... OPENAI_BASE_URL=https://your-provider.example/v1 pnpm -C packages/demo-node start -- --project .
 ```
+
+### Server sandboxing (optional)
+
+The Node demo can wrap tool execution in an additional process sandbox boundary (Linux/macOS/Windows support is best-effort and backend-dependent). See:
+
+- `docs/guide/sandboxing.md`
 
 ### Commands
 

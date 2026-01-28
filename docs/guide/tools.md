@@ -26,4 +26,9 @@ Node demo only (requires a server-side key):
 
 ## Shell tools
 
-`Command` / `Shell` over WASI are implemented in the SDK, but an official tool bundle distribution story is tracked for later versions. The demos do not enable them by default.
+`Command` / `Shell` over WASI are implemented in the SDK and power the WASI-backed `Bash` tool in the demos (when enabled). They require:
+
+- a WASI runner (browser worker runner or server `wasmtime` runner)
+- signed bundles installed from an official bundle base URL / registry
+
+The TS-native tools remain available as a fallback.

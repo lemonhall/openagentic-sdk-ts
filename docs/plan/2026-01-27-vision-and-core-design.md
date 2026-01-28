@@ -41,11 +41,11 @@ production-grade OS sandboxes (without changing tool semantics).
 - WASI network via injected `fetch` with `credentials: "omit"` by default.
 - Permission gating default: **ask once per session, then auto-allow** (user can revoke/reset).
 
-## Status (as of v4 — current repo reality)
+## Status (as of v7 — current repo reality)
 
 The repo now has a runnable end-to-end agent slice (Node + browser) and the default tool path is **WASI-first** in both environments, with safe fallbacks.
 
-**Implemented (v1–v4):**
+**Implemented (v1–v7):**
 
 - Event-sourced sessions + resumable runtime loop (multi-turn + tool calling + streaming).
 - Shadow workspace abstractions (Memory/OPFS/LocalDir) with explicit import/commit boundaries.
@@ -56,6 +56,10 @@ The repo now has a runnable end-to-end agent slice (Node + browser) and the defa
 - Browser: Worker runner with OPFS-backed workspace mounting semantics (worker-cached snapshot + persisted deltas).
 - Node: `wasmtime` runner with mounted shadow directory (no snapshot-per-exec round-trips).
 - WASI netfetch: policy + auditing in the browser WASI runner; server support depends on runner embedding (tracked).
+- Pluggable server sandboxing:
+  - outer “process sandbox” adapters for the WASI runner process (v5; Bubblewrap first).
+  - a Linux-only native execution engine (v6; host commands under Bubblewrap).
+  - cross-platform sandbox backend registry with best-effort backends for Linux/macOS/Windows (v7).
 
 **Present and used by default in demos:**
 
@@ -66,8 +70,12 @@ The repo now has a runnable end-to-end agent slice (Node + browser) and the defa
 
 The high-level architecture remains valid, but several pieces are still “prototype-grade” or disconnected from the default runnable path:
 
+- **Browser session durability**: the demo still uses an in-memory JSONL store; reload loses history/audit logs.
+- **Review UX**: commit approval is minimal; needs a reviewable changeset (list + safe previews/diffs).
 - **Server-side WASI netfetch is still incomplete**: the browser runner wires `netFetch` end-to-end (policy + audits), but the current server runner is `wasmtime` CLI based and cannot easily expose custom host imports. This likely requires an embedded runtime or a standard WASI HTTP/component model.
 - **Python is partially delivered**: the `Python` tool + `lang-python` bundle wiring exists, but the shipped demo runtime is currently a minimal placeholder WASI module. A real MicroPython/CPython WASI runtime bundle + packaging policy is still tracked.
+- **Hosted official bundles**: users should be able to run the browser demo without relying on local “sample bundle” paths.
+- **E2E confidence**: add at least one stable end-to-end “happy path” test per environment.
 
 ## Sandbox backends (WASI-first, pluggable hardening)
 
@@ -96,7 +104,7 @@ The SDK should expose a stable server-side “sandbox adapter” interface that 
 
 The default adapter remains “no outer sandbox” (WASI-only), but adapters can be plugged in per deployment.
 
-Implementation tracking: `docs/plan/v5-index.md`.
+Implementation tracking: `docs/plan/index.md` (v1–v8), plus sandbox deep-dives in `docs/plan/v5-index.md`–`docs/plan/v7-index.md`.
 
 ## Core architecture (recommended)
 
@@ -199,9 +207,11 @@ Browser caches bundles in OPFS; server caches them in a configured local directo
 - WASI in browser: choose a shim/runtime and define the hostcall surface (FS + fetch + time + randomness).
 - Python-in-WASI expectations: footprint, stdlib coverage, package management policy, and limits (tracked as `docs/plan/v3-feature-06-python-runtime-bundle.md`).
 
-## Next milestone (v3)
+## Next milestone (v8)
 
-Make the default “Bash-like” experience **WASI-first** (bundles + runners) while keeping the v2 runnable slice intact. See `docs/plan/v3-index.md`.
+Close the remaining “vision gaps” that still feel prototype-grade: durable browser sessions, reviewable changeset UI, correct server WASI `netFetch` behavior, hosted official bundles, and an end-to-end test slice.
+
+See: `docs/plan/v8-index.md`.
 
 ## Future extensions (explicitly out of v1)
 

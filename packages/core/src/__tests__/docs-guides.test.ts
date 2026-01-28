@@ -15,10 +15,21 @@ describe("docs/guide", () => {
     const repoReadme = await readText("README.md");
     expect(repoReadme).toContain("docs/guide/README.md");
 
+    const plansIndex = await readText("docs/plan/index.md");
+    expect(plansIndex).toContain("v8 index");
+    expect(plansIndex).toContain("v8-index.md");
+
+    const vision = await readText("docs/plan/2026-01-27-vision-and-core-design.md");
+    expect(vision).toContain("Status (as of v7");
+
     const guideReadme = await readText("docs/guide/README.md");
     expect(guideReadme).toContain("quickstart-node.md");
     expect(guideReadme).toContain("quickstart-browser.md");
     expect(guideReadme).toContain("docs/guide/tools/README.md");
+
+    const quickNode = await readText("docs/guide/quickstart-node.md");
+    expect(quickNode).toContain("--no-wasi");
+    expect(quickNode).toContain("OPENAI_BASE_URL");
 
     const security = await readText("docs/guide/security.md");
     expect(security).toContain('credentials: "omit"');
@@ -27,5 +38,8 @@ describe("docs/guide", () => {
     const tools = await readText("docs/guide/tools/README.md");
     expect(tools).toContain("Bash");
     expect(tools).toContain("WebFetch");
+
+    const toolsOverview = await readText("docs/guide/tools.md");
+    expect(toolsOverview).not.toContain("The demos do not enable them by default");
   });
 });
