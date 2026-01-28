@@ -18,5 +18,6 @@
 
 ## Notes
 
-- The demo bundles currently ship a **minimal placeholder** `lang-python` runtime to validate bundle/tool wiring. Swap it with a real MicroPython/CPython WASI runtime bundle for production use.
-
+- The demo `lang-python` bundle ships a **minimal** WASI runtime intended for demos and tests.
+  - Currently supported subset: `python -c "print(<int expr>)"` where `<int expr>` uses digits and `+ - * /` (no full CPython/MicroPython semantics).
+  - Production use should swap this for a real MicroPython/CPython WASI runtime bundle with a clear packaging policy.

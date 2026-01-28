@@ -4,8 +4,8 @@
   "assets": [
     {
       "path": "python.wasm",
-      "sha256": "787d9c6bc2f4d7f9fcafd7c6ca2cb4bfc215139cbb2e92e01dfb48f889922a72",
-      "size": 517
+      "sha256": "a6bf991610e0aa3b044040e01ae114967754ffccec0cbea3d41cf64ed9135203",
+      "size": 1285
     }
   ],
   "commands": [
@@ -17,6 +17,6 @@
   "signature": {
     "keyId": "dev-2026-01",
     "alg": "ed25519",
-    "sigBase64": "1o+pcrAcWPLK2lUaL2dsIojb9ld2/ZWjSGLAVo9AIhRwVHPAEvIjbkqs9mgihxjLsQ0+kmcXdKtA/dHi4bmbBQ=="
+    "sigBase64": "mlb+1AMA1eY4xJBE4xP3ZH2kuvaqAIRpGNGSQrsXUt6R1veaSJOfNC56Ya9CCXIEcF52bwSungF5zRCfH3Z7Cw=="
   }
 }
