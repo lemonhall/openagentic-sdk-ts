@@ -67,6 +67,12 @@ v11 closes the biggest remaining “POSIX `sh`” semantic gaps that still make 
 
 - v11 index: `v11-index.md`
 
+## v12 plans (full `rg` parity)
+
+v12 makes `rg` (ripgrep) a first-class tool in the shell by targeting upstream ripgrep 15.1.0 behavior via a WASI bundle, with golden snapshots + integration fixtures to lock parity.
+
+- v12 index: `v12-index.md`
+
 ## v1 feature plans
 
 Suggested execution order:
