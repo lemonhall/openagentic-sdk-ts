@@ -75,6 +75,8 @@ async function main() {
 
   const commands = [
     { name: "echo", wat: join(watRoot, "echo.wat"), wasm: join(bundleRoot, "echo.wasm") },
+    { name: "true", wat: join(watRoot, "true.wat"), wasm: join(bundleRoot, "true.wasm") },
+    { name: "false", wat: join(watRoot, "false.wat"), wasm: join(bundleRoot, "false.wasm") },
     { name: "cat", wat: join(watRoot, "cat.wat"), wasm: join(bundleRoot, "cat.wasm") },
     { name: "grep", wat: join(watRoot, "grep.wat"), wasm: join(bundleRoot, "grep.wasm") },
     { name: "pwd", wat: join(watRoot, "pwd.wat"), wasm: join(bundleRoot, "pwd.wasm") },

@@ -51,7 +51,7 @@ describe("CommandTool", () => {
     });
 
     const workspace = new MemoryWorkspace();
-    const out = (await tool.run({ argv: ["echo"] }, { sessionId: "s", toolUseId: "t", workspace } as any)) as any;
+    const out = (await tool.run({ argv: ["echo", "hi"] }, { sessionId: "s", toolUseId: "t", workspace } as any)) as any;
     expect(out.stdout).toBe("hi\n");
   });
 

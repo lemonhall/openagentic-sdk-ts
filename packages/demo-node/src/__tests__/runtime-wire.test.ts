@@ -85,7 +85,7 @@ describe("demo-node runtime wiring", () => {
 
     const bash = tools.get("Bash");
     const out = (await bash.run(
-      { command: "echo" },
+      { command: "echo hi" },
       { sessionId: "s", toolUseId: "t", workspace } as any,
     )) as any;
 
@@ -116,7 +116,7 @@ describe("demo-node runtime wiring", () => {
     const { tools } = await createDemoRuntime({ sessionStore, workspace, provider, model: "fake-model" });
     const bash = tools.get("Bash");
     const out = (await bash.run(
-      { command: "echo" },
+      { command: "echo hi" },
       { sessionId: "s", toolUseId: "t", workspace } as any,
     )) as any;
 

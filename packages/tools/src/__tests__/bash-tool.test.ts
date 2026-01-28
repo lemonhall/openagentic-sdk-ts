@@ -92,7 +92,7 @@ describe("BashTool (WASI backend)", () => {
     const ws = new MemoryWorkspace();
     const bash = new BashTool({ wasiCommand: command } as any);
     const out = (await bash.run(
-      { command: "echo | grep hi" },
+      { command: "echo hi | grep hi" },
       { sessionId: "s", toolUseId: "t", workspace: ws } as any,
     )) as any;
 

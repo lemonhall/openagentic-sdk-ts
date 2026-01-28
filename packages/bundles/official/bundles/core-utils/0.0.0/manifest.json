@@ -14,8 +14,13 @@
     },
     {
       "path": "echo.wasm",
-      "sha256": "3e10583318ceaa931ea05424628cfd7e599a3fe0ad7586f9df09088e195a6034",
-      "size": 216
+      "sha256": "312c1eaab510e2d19f8035102bccdefe4d567e531fa7a9fbb40c9cff349ce815",
+      "size": 537
+    },
+    {
+      "path": "false.wasm",
+      "sha256": "019ebb67012cd1218191ba3e3ea8f5aa8abf9766bcc1162c25df2a3fd746c5af",
+      "size": 110
     },
     {
       "path": "grep.wasm",
@@ -58,6 +63,11 @@
       "size": 448
     },
     {
+      "path": "true.wasm",
+      "sha256": "5eb92dc1a8161785cb7279c05f74c05598a71ef20451b388983f53995cfa881e",
+      "size": 110
+    },
+    {
       "path": "wc.wasm",
       "sha256": "62c6ab913d5296772f5dc16f7c2b7ff370d0588b3f183df5631f4159b037884c",
       "size": 648
@@ -75,6 +85,10 @@
     {
       "name": "echo",
       "modulePath": "echo.wasm"
+    },
+    {
+      "name": "false",
+      "modulePath": "false.wasm"
     },
     {
       "name": "grep",
@@ -109,6 +123,10 @@
       "modulePath": "tail.wasm"
     },
     {
+      "name": "true",
+      "modulePath": "true.wasm"
+    },
+    {
       "name": "wc",
       "modulePath": "wc.wasm"
     }
@@ -116,6 +134,6 @@
   "signature": {
     "keyId": "dev-2026-01",
     "alg": "ed25519",
-    "sigBase64": "e0Fw+KvPdk/XMAr8QDR9aZqo4oi9YE3WRi167+RQOogN6AFiRHOxhXzto4SS05HJ+c66hQko0oMpJrpS5wHYCA=="
+    "sigBase64": "EJKYrNgjDAJuEMiyvW3sFWiyLcEGh/7S1Mo83F4z3RU7+uXnthoHItI0ewSs3T4Gbv+jJGgG64eRwXn8+mYWBA=="
   }
 }

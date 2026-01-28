@@ -61,7 +61,7 @@ describe("demo-web WASI Bash", () => {
 
       const bash = agent.tools.get("Bash");
       const out = (await bash.run(
-        { command: "echo" },
+        { command: "echo hi" },
         { sessionId: "s", toolUseId: "t", workspace } as any,
       )) as any;
 

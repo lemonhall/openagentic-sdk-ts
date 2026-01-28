@@ -48,7 +48,7 @@ describe("ShellTool", () => {
 
     const ws = new MemoryWorkspace();
     const res = (await shell.run(
-      { script: "echo | cat" },
+      { script: "echo hi | cat" },
       { sessionId: "s", toolUseId: "t", workspace: ws } as any,
     )) as any;
     expect(res.stdout).toBe("hi\n");
@@ -63,7 +63,7 @@ describe("ShellTool", () => {
 
     const ws = new MemoryWorkspace();
     const res = (await shell.run(
-      { script: "echo | grep hi" },
+      { script: "echo hi | grep hi" },
       { sessionId: "s", toolUseId: "t", workspace: ws } as any,
     )) as any;
     expect(res.stdout).toBe("hi\n");
@@ -77,7 +77,7 @@ describe("ShellTool", () => {
 
     const ws = new MemoryWorkspace();
     const res = (await shell.run(
-      { script: "echo > out.txt" },
+      { script: "echo hi > out.txt" },
       { sessionId: "s", toolUseId: "t", workspace: ws } as any,
     )) as any;
     expect(res.stdout).toBe("");
@@ -92,13 +92,13 @@ describe("ShellTool", () => {
     const ws = new MemoryWorkspace();
 
     const a = (await shell.run(
-      { script: "nope && echo" },
+      { script: "nope && echo hi" },
       { sessionId: "s", toolUseId: "t", workspace: ws } as any,
     )) as any;
     expect(a.stdout).toBe("");
 
     const b = (await shell.run(
-      { script: "nope || echo" },
+      { script: "nope || echo hi" },
       { sessionId: "s", toolUseId: "t", workspace: ws } as any,
     )) as any;
     expect(b.stdout).toBe("hi\n");
@@ -114,7 +114,7 @@ describe("ShellTool", () => {
     await ws.writeFile("a1.txt", new TextEncoder().encode("X"));
 
     const out1 = (await shell.run(
-      { script: "echo > $OUT", env: { OUT: "saved.txt" } },
+      { script: "echo hi > $OUT", env: { OUT: "saved.txt" } },
       { sessionId: "s", toolUseId: "t", workspace: ws } as any,
     )) as any;
     expect(out1.stdout).toBe("");
