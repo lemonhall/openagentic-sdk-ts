@@ -230,6 +230,22 @@ describe("BashTool (workspace-native)", () => {
     expect(out.stderr).toBe("");
     expect(out.stdout).toBe("a b\n");
   });
+
+  it("supports test and [ builtins", async () => {
+    const ws = new MemoryWorkspace();
+    await ws.writeFile("a.txt", new TextEncoder().encode("x"));
+    await ws.writeFile("dir/x.txt", new TextEncoder().encode("y"));
+
+    const bash = new BashTool();
+    const out = (await bash.run(
+      { command: "test -n hi && echo ok; test -z \"\" && echo ok; test -f a.txt && echo ok; [ -d dir ] && echo ok; [ -n \"\" ] || echo ok" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stderr).toBe("");
+    expect(out.stdout).toBe("ok\nok\nok\nok\nok\n");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {

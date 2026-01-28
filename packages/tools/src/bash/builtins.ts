@@ -144,6 +144,41 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
     return { exitCode: 0, stdout: out, stderr: "" };
   }
 
+  if (cmd === "test" || cmd === "[") {
+    let a = [...args];
+    if (cmd === "[") {
+      const last = a.at(-1);
+      if (last !== "]") return { exitCode: 2, stdout: "", stderr: "[: missing ]" };
+      a = a.slice(0, -1);
+    }
+
+    const unary = async (op: string, v: string): Promise<boolean> => {
+      if (op === "-n") return v.length > 0;
+      if (op === "-z") return v.length === 0;
+      if (op === "-e") return Boolean(await deps.workspace.stat(resolveCwdPath(io.cwd, v)));
+      if (op === "-f") return (await deps.workspace.stat(resolveCwdPath(io.cwd, v)))?.type === "file";
+      if (op === "-d") return (await deps.workspace.stat(resolveCwdPath(io.cwd, v)))?.type === "dir";
+      return false;
+    };
+
+    let ok = false;
+    if (a.length === 0) ok = false;
+    else if (a.length === 1) ok = (a[0] ?? "").length > 0;
+    else if (a.length === 2) ok = await unary(a[0] ?? "", a[1] ?? "");
+    else if (a.length === 3) {
+      const left = a[0] ?? "";
+      const op = a[1] ?? "";
+      const right = a[2] ?? "";
+      if (op === "=") ok = left === right;
+      else if (op === "!=") ok = left !== right;
+      else ok = false;
+    } else {
+      return { exitCode: 2, stdout: "", stderr: `${cmd}: too many arguments` };
+    }
+
+    return { exitCode: ok ? 0 : 1, stdout: "", stderr: "" };
+  }
+
   if (cmd === "date") {
     if (args.length > 0) return { exitCode: 2, stdout: "", stderr: "date: flags not supported (v10: add format support)" };
     return { exitCode: 0, stdout: `${isoDateFromEnv(io.env)}\n`, stderr: "" };
