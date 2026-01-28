@@ -19,7 +19,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "vitest run",
-    "generate:sample-core-utils": "node ./scripts/generate-sample-core-utils.mjs"
+    "generate:sample-core-utils": "node ./scripts/generate-sample-core-utils.mjs",
+    "generate:official-ripgrep": "node ./scripts/generate-official-ripgrep.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
