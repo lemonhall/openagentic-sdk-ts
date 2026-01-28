@@ -216,6 +216,20 @@ describe("BashTool (workspace-native)", () => {
     expect(out.stdout).toBe("");
     expect(out.stderr).toBe("hi\n");
   });
+
+  it("supports printf builtin", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "printf \"%s %s\\n\" a b" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stderr).toBe("");
+    expect(out.stdout).toBe("a b\n");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {

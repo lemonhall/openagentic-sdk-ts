@@ -28,6 +28,82 @@ function isoDateFromEnv(env: Record<string, string>): string {
   return new Date().toISOString();
 }
 
+function interpretBackslashEscapes(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]!;
+    if (c !== "\\") {
+      out += c;
+      continue;
+    }
+    const n = s[i + 1];
+    if (n === undefined) {
+      out += "\\";
+      continue;
+    }
+    if (n === "n") {
+      out += "\n";
+      i++;
+      continue;
+    }
+    if (n === "t") {
+      out += "\t";
+      i++;
+      continue;
+    }
+    if (n === "r") {
+      out += "\r";
+      i++;
+      continue;
+    }
+    if (n === "\\") {
+      out += "\\";
+      i++;
+      continue;
+    }
+    out += n;
+    i++;
+  }
+  return out;
+}
+
+function formatPrintfOnce(fmtRaw: string, args: string[], startIdx: number): { out: string; nextIdx: number; usedArg: boolean } {
+  const fmt = interpretBackslashEscapes(fmtRaw);
+  let out = "";
+  let argIdx = startIdx;
+  let usedArg = false;
+
+  for (let i = 0; i < fmt.length; i++) {
+    const c = fmt[i]!;
+    if (c !== "%") {
+      out += c;
+      continue;
+    }
+    const n = fmt[i + 1];
+    if (n === undefined) {
+      out += "%";
+      continue;
+    }
+    if (n === "%") {
+      out += "%";
+      i++;
+      continue;
+    }
+    if (n === "s") {
+      out += args[argIdx] ?? "";
+      usedArg = true;
+      argIdx++;
+      i++;
+      continue;
+    }
+    // Minimal: unknown specifier -> print literally.
+    out += `%${n}`;
+    i++;
+  }
+
+  return { out, nextIdx: argIdx, usedArg };
+}
+
 async function walkFiles(workspace: Workspace, dir: string): Promise<string[]> {
   const out: string[] = [];
   const entries = await workspace.listDir(dir);
@@ -48,6 +124,24 @@ export async function runBuiltin(argv: string[], io: BuiltinIo, deps: BuiltinDep
 
   if (cmd === "echo") {
     return { exitCode: 0, stdout: `${args.join(" ")}\n`, stderr: "" };
+  }
+
+  if (cmd === "printf") {
+    const fmt = args[0] ?? "";
+    const rest = args.slice(1);
+    if (!fmt) return { exitCode: 0, stdout: "", stderr: "" };
+
+    let out = "";
+    let idx = 0;
+    let first = true;
+    while (first || idx < rest.length) {
+      first = false;
+      const one = formatPrintfOnce(fmt, rest, idx);
+      out += one.out;
+      if (!one.usedArg) break;
+      idx = one.nextIdx;
+    }
+    return { exitCode: 0, stdout: out, stderr: "" };
   }
 
   if (cmd === "date") {
