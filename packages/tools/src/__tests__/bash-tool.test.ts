@@ -202,6 +202,20 @@ describe("BashTool (workspace-native)", () => {
     expect(out.stderr).toBe("");
     expect(out.stdout).toBe("grep: pattern required");
   });
+
+  it("supports stdout-to-stderr redirect '1>&2'", async () => {
+    const ws = new MemoryWorkspace();
+    const bash = new BashTool();
+
+    const out = (await bash.run(
+      { command: "echo hi 1>&2" },
+      { sessionId: "s", toolUseId: "t", workspace: ws } as any,
+    )) as any;
+
+    expect(out.exit_code).toBe(0);
+    expect(out.stdout).toBe("");
+    expect(out.stderr).toBe("hi\n");
+  });
 });
 
 describe("BashTool (WASI backend)", () => {

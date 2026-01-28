@@ -1,10 +1,10 @@
 export type WordToken = { kind: "word"; value: string; quote: "none" | "single" | "double" | "mixed" };
-export type OpToken = { kind: "op"; value: "(" | ")" | "|" | "&&" | "||" | "<" | ">" | ">>" | "2>" | "2>>" | "2>&1" | ";" };
+export type OpToken = { kind: "op"; value: "(" | ")" | "|" | "&&" | "||" | "<" | ">" | ">>" | "2>" | "2>>" | "2>&1" | "1>&2" | ";" };
 export type Token = WordToken | OpToken;
 
 export type Redir =
   | { kind: "in" | "out" | "append" | "err" | "errAppend"; path: WordToken }
-  | { kind: "errToOut" };
+  | { kind: "errToOut" | "outToErr" };
 
 export type CommandNode = {
   argv: WordToken[];
@@ -221,6 +221,11 @@ export function tokenize(script: string): Token[] {
       i += 4;
       continue;
     }
+    if (s.startsWith("1>&2", i)) {
+      out.push({ kind: "op", value: "1>&2" });
+      i += 4;
+      continue;
+    }
     if (s.startsWith("2>>", i)) {
       out.push({ kind: "op", value: "2>>" });
       i += 3;
@@ -271,10 +276,14 @@ export function parseScript(script: string): ScriptNode {
       while (idx < toks.length) {
         const t = peek();
         if (t.kind !== "op") break;
-        if (t.value !== "<" && t.value !== ">" && t.value !== ">>" && t.value !== "2>" && t.value !== "2>>" && t.value !== "2>&1") break;
+        if (t.value !== "<" && t.value !== ">" && t.value !== ">>" && t.value !== "2>" && t.value !== "2>>" && t.value !== "2>&1" && t.value !== "1>&2") break;
         const op = take() as OpToken;
         if (op.value === "2>&1") {
           redirs.push({ kind: "errToOut" });
+          continue;
+        }
+        if (op.value === "1>&2") {
+          redirs.push({ kind: "outToErr" });
           continue;
         }
         const next = take() as Token | undefined;

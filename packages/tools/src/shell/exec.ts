@@ -201,6 +201,11 @@ export async function execSequence(
         fd2 = fd1;
         continue;
       }
+      if (r.kind === "outToErr") {
+        // NOTE: ordering matters; this copies fd2 "as of now".
+        fd1 = fd2;
+        continue;
+      }
     }
 
     const pieces = new Map<Sink, string>();
