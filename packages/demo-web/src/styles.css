@@ -234,11 +234,182 @@
   color: #9ca3af;
 }
 
+.oaHidden {
+  display: none !important;
+}
+
+.oaModal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+}
+
+.oaModalBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.oaModalPanel {
+  position: relative;
+  width: min(1100px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(17, 24, 39, 0.95);
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.55);
+  color: #e5e7eb;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.oaModalHeader {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.oaModalTitle {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.oaModalBody {
+  padding: 12px 14px;
+  overflow: auto;
+}
+
+.oaModalFooter {
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.oaBtnPrimary {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.oaSectionTitle {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 6px;
+}
+
+.oaChangesCols {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 12px;
+}
+
+.oaChangesSummary {
+  font-size: 12px;
+  color: #93c5fd;
+}
+
+.oaChangesList {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.oaChangesRow {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 8px;
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.oaChangesRow:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.oaChangesRow.isSelected {
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.oaChangesKind {
+  font-weight: 700;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.oaChangesKind--add {
+  color: #34d399;
+}
+.oaChangesKind--modify {
+  color: #fbbf24;
+}
+.oaChangesKind--delete {
+  color: #fb7185;
+}
+
+.oaChangesPath {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oaChangesPreview {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  min-height: 360px;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.oaPreviewTitle {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.oaPreviewLabel {
+  font-size: 11px;
+  color: #9ca3af;
+  margin: 8px 0 4px 0;
+}
+
+.oaPreviewPre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.25);
+  max-height: 240px;
+  overflow: auto;
+}
+
 @media (max-width: 900px) {
   .oaControls {
     grid-template-columns: 1fr;
   }
   .oaMain {
+    grid-template-columns: 1fr;
+  }
+  .oaChangesCols {
     grid-template-columns: 1fr;
   }
 }

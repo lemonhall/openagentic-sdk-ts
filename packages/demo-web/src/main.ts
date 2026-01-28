@@ -2,6 +2,7 @@ import type { Snapshot, WorkspaceEntry } from "@openagentic/workspace";
 import {
   OpfsWorkspace,
   commitToDirectoryHandle,
+  computeChangeSet,
   getOpfsRootDirectory,
   importFromDirectoryHandle,
   snapshotWorkspace,
@@ -13,6 +14,9 @@ import { clearDirectoryHandle } from "./fs-utils.js";
 import { shouldSubmitOnKeydown } from "./composer.js";
 import { reduceChatState } from "./state.js";
 import { iconKindForEntry, iconSvgForKind } from "./file-icons.js";
+import { decodeTextPreview } from "./changeset-preview.js";
+import { summarizeChangeSet } from "./changeset-model.js";
+import { formatChangeSetSummary, renderChangeList } from "./changeset-ui.js";
 import { createDemoSessionStore } from "./session-store.js";
 
 import "./styles.css";
@@ -62,6 +66,32 @@ async function main(): Promise<void> {
           <div id="files" class="oaFiles"></div>
         </aside>
       </main>
+
+      <div id="changesModal" class="oaModal oaHidden" aria-hidden="true">
+        <div class="oaModalBackdrop"></div>
+        <div class="oaModalPanel" role="dialog" aria-modal="true" aria-label="Review changes">
+          <div class="oaModalHeader">
+            <div class="oaModalTitle">Review Changes</div>
+            <div id="changesSummary" class="oaChangesSummary"></div>
+          </div>
+          <div class="oaModalBody">
+            <div class="oaChangesCols">
+              <div>
+                <div class="oaSectionTitle">Files</div>
+                <div id="changesList" class="oaChangesList"></div>
+              </div>
+              <div>
+                <div class="oaSectionTitle">Preview</div>
+                <div id="changesPreview" class="oaChangesPreview">(select a file)</div>
+              </div>
+            </div>
+          </div>
+          <div class="oaModalFooter">
+            <button id="changesCancel" class="oaBtn">Cancel</button>
+            <button id="changesApply" class="oaBtn oaBtnPrimary">Apply Commit</button>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 
@@ -77,6 +107,12 @@ async function main(): Promise<void> {
   const importDirEl = document.querySelector<HTMLButtonElement>("#importDir")!;
   const commitDirEl = document.querySelector<HTMLButtonElement>("#commitDir")!;
   const resetOpfsEl = document.querySelector<HTMLButtonElement>("#resetOpfs")!;
+  const changesModalEl = document.querySelector<HTMLDivElement>("#changesModal")!;
+  const changesSummaryEl = document.querySelector<HTMLDivElement>("#changesSummary")!;
+  const changesListEl = document.querySelector<HTMLDivElement>("#changesList")!;
+  const changesPreviewEl = document.querySelector<HTMLDivElement>("#changesPreview")!;
+  const changesCancelEl = document.querySelector<HTMLButtonElement>("#changesCancel")!;
+  const changesApplyEl = document.querySelector<HTMLButtonElement>("#changesApply")!;
 
   let state = { messages: [] as Array<{ role: "user" | "assistant"; text: string; streaming?: boolean }> };
   let realDirHandle: FileSystemDirectoryHandle | null = null;
@@ -89,6 +125,10 @@ async function main(): Promise<void> {
   let baseSnapshot: Snapshot | null = null;
   let workspaceInit: Promise<void> | null = null;
   let opfsDemoDir: any | null = null;
+  let pendingChangeSet: ReturnType<typeof computeChangeSet> | null = null;
+  let pendingChangeSummary: ReturnType<typeof summarizeChangeSet> | null = null;
+  let selectedChangePath: string | null = null;
+  let previewToken = 0;
 
   function setStatus(text: string): void {
     statusEl.textContent = text;
@@ -142,6 +182,168 @@ async function main(): Promise<void> {
     }
     await workspaceInit;
   }
+
+  function openModal(): void {
+    changesModalEl.classList.remove("oaHidden");
+    changesModalEl.setAttribute("aria-hidden", "false");
+  }
+
+  function closeModal(): void {
+    changesModalEl.classList.add("oaHidden");
+    changesModalEl.setAttribute("aria-hidden", "true");
+    pendingChangeSet = null;
+    pendingChangeSummary = null;
+    selectedChangePath = null;
+    changesSummaryEl.textContent = "";
+    changesListEl.innerHTML = "";
+    changesPreviewEl.textContent = "(select a file)";
+  }
+
+  async function readRealFile(path: string): Promise<Uint8Array> {
+    if (!realDirHandle) throw new Error("No real directory selected");
+    const parts = path.split("/").filter(Boolean);
+    let dir: any = realDirHandle as any;
+    for (const p of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(p);
+    const fileHandle = await dir.getFileHandle(parts.at(-1));
+    const file = await fileHandle.getFile();
+    return new Uint8Array(await file.arrayBuffer());
+  }
+
+  async function renderPreview(path: string): Promise<void> {
+    const my = ++previewToken;
+    if (!pendingChangeSet || !workspace) return;
+    changesPreviewEl.textContent = "loading...";
+
+    const cs = pendingChangeSet;
+    const kind =
+      cs.adds.some((c: any) => c.path === path) ? "add" : cs.deletes.some((c: any) => c.path === path) ? "delete" : "modify";
+
+    let before: string | null = null;
+    let after: string | null = null;
+
+    if (kind !== "add") {
+      try {
+        const bytes = await readRealFile(path);
+        const p = decodeTextPreview(bytes);
+        before = p ? p.text + (p.truncated ? "\n…(truncated)" : "") : "(binary)";
+      } catch {
+        before = "(unavailable)";
+      }
+    }
+
+    if (kind !== "delete") {
+      try {
+        const bytes = await workspace.readFile(path);
+        const p = decodeTextPreview(bytes);
+        after = p ? p.text + (p.truncated ? "\n…(truncated)" : "") : "(binary)";
+      } catch {
+        after = "(unavailable)";
+      }
+    }
+
+    if (my !== previewToken) return;
+
+    const wrap = document.createElement("div");
+    wrap.className = "oaPreviewWrap";
+
+    const title = document.createElement("div");
+    title.className = "oaPreviewTitle";
+    title.textContent = `${kind.toUpperCase()} ${path}`;
+    wrap.appendChild(title);
+
+    if (before != null) {
+      const h = document.createElement("div");
+      h.className = "oaPreviewLabel";
+      h.textContent = "before";
+      const pre = document.createElement("pre");
+      pre.className = "oaPreviewPre";
+      pre.textContent = before;
+      wrap.append(h, pre);
+    }
+
+    if (after != null) {
+      const h = document.createElement("div");
+      h.className = "oaPreviewLabel";
+      h.textContent = "after";
+      const pre = document.createElement("pre");
+      pre.className = "oaPreviewPre";
+      pre.textContent = after;
+      wrap.append(h, pre);
+    }
+
+    changesPreviewEl.innerHTML = "";
+    changesPreviewEl.appendChild(wrap);
+  }
+
+  function renderChangesList(): void {
+    if (!pendingChangeSummary) return;
+    changesListEl.innerHTML = "";
+    changesListEl.appendChild(
+      renderChangeList({
+        items: pendingChangeSummary.items,
+        selectedPath: selectedChangePath,
+        onSelect: async (p) => {
+          selectedChangePath = p;
+          renderChangesList();
+          await renderPreview(p);
+        },
+      }),
+    );
+  }
+
+  async function reviewPendingChanges(): Promise<void> {
+    await ensureWorkspace();
+    if (!workspace || !baseSnapshot) throw new Error("OPFS workspace is not initialized (import first)");
+
+    const cur = await snapshotWorkspace(workspace);
+    const changeSet = computeChangeSet(baseSnapshot, cur);
+    const summary = summarizeChangeSet(changeSet);
+    pendingChangeSet = changeSet;
+    pendingChangeSummary = summary;
+
+    changesSummaryEl.textContent = formatChangeSetSummary(summary.counts);
+
+    if (!summary.items.length) {
+      selectedChangePath = null;
+      pendingChangeSummary = summary;
+      changesListEl.innerHTML = `<div class="oaMuted">(no changes)</div>`;
+      changesPreviewEl.textContent = "(no changes)";
+      openModal();
+      return;
+    }
+
+    if (!selectedChangePath || !summary.items.some((i) => i.path === selectedChangePath)) {
+      selectedChangePath = summary.items[0]!.path;
+    }
+    renderChangesList();
+
+    openModal();
+    if (selectedChangePath) await renderPreview(selectedChangePath);
+  }
+
+  changesCancelEl.addEventListener("click", () => closeModal());
+  changesModalEl.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement)?.classList?.contains("oaModalBackdrop")) closeModal();
+  });
+
+  changesApplyEl.addEventListener("click", async () => {
+    try {
+      if (!realDirHandle) {
+        setStatus("choose a directory first");
+        return;
+      }
+      await ensureWorkspace();
+      if (!workspace || !baseSnapshot) throw new Error("OPFS workspace is not initialized (import first)");
+      setStatus("committing...");
+      await commitToDirectoryHandle(realDirHandle as any, workspace, baseSnapshot);
+      baseSnapshot = await snapshotWorkspace(workspace);
+      await refreshFiles();
+      closeModal();
+      setStatus("committed");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    }
+  });
 
   const controller = createController({
     ensureRuntime: async () => {
@@ -237,17 +439,8 @@ async function main(): Promise<void> {
         return;
       }
       setStatus("computing changes...");
-      await ensureWorkspace();
-      if (!workspace || !baseSnapshot) throw new Error("OPFS workspace is not initialized (import first)");
-      const { changeSet } = await commitToDirectoryHandle(realDirHandle as any, workspace, baseSnapshot, {
-        approve: async (cs) => {
-          const msg = `Commit changes?\\n\\n+${cs.adds.length} ~${cs.modifies.length} -${cs.deletes.length}`;
-          return window.confirm(msg);
-        },
-      });
-      baseSnapshot = await snapshotWorkspace(workspace);
-      await refreshFiles();
-      setStatus(`committed: +${changeSet.adds.length} ~${changeSet.modifies.length} -${changeSet.deletes.length}`);
+      await reviewPendingChanges();
+      setStatus("review changes, then apply commit");
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e));
     }
