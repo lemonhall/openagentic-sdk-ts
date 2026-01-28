@@ -82,6 +82,18 @@ This project separates two concepts:
 - **Execution engine**: *what* actually runs the tools (today: WASI via `wasmtime`).
 - **Sandbox technology**: *how* the runner process is constrained (today: optional Bubblewrap).
 
+## WASI `netFetch` support (important)
+
+`netFetch` is an optional capability that allows WASI modules to make HTTP(S) requests through a host-provided `fetch`.
+
+Support depends on the runner implementation:
+
+- Browser WASI runner (`@openagentic/wasi-runner-web`): supported.
+- Node in-process WASI runner (`InProcessWasiRunner`): supported.
+- `wasmtime` **CLI** runner (`@openagentic/wasi-runner-wasmtime`): **not supported** (it cannot inject custom host imports).
+
+In demos, “WASI Bash” and “WASI netFetch” are separate toggles. Enabling netFetch forces the Node demo to use an in-process runner.
+
 Bubblewrap (`bwrap`) is a **process sandbox**. It does not run tools by itself; it wraps another program (e.g. `wasmtime`, or a native tool runner) and restricts its filesystem/network view.
 
 So if you enable Bubblewrap in the current implementation, you will still see `wasmtime` in the execution chain — by design — because WASI is still the execution engine that keeps browser/server semantics aligned.

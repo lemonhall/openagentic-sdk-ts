@@ -41,5 +41,10 @@ describe("docs/guide", () => {
 
     const toolsOverview = await readText("docs/guide/tools.md");
     expect(toolsOverview).not.toContain("The demos do not enable them by default");
+
+    const sandboxing = await readText("docs/guide/sandboxing.md");
+    expect(sandboxing).toContain("netFetch");
+    expect(sandboxing).toContain("wasmtime");
+    expect(sandboxing.toLowerCase()).toContain("not supported");
   });
 });

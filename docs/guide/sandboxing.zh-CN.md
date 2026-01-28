@@ -85,6 +85,18 @@ const nativeRunner = backend.createNativeRunner({ config: cfg, shadowDir });
 - **执行引擎（execution engine）**：真正“跑工具”的东西（当前是 WASI，通过 `wasmtime` 执行 WASI tool bundles）。
 - **沙箱技术（sandbox technology）**：用什么手段去约束/隔离 runner 进程（当前是可选 Bubblewrap）。
 
+## WASI `netFetch` 支持（重要）
+
+`netFetch` 是一个可选能力，用来让 WASI 模块通过宿主提供的 `fetch` 去发起 HTTP(S) 请求。
+
+是否支持取决于 runner 实现：
+
+- 浏览器 WASI runner（`@openagentic/wasi-runner-web`）：支持。
+- Node in-process WASI runner（`InProcessWasiRunner`）：支持。
+- `wasmtime` **CLI** runner（`@openagentic/wasi-runner-wasmtime`）：**不支持**（CLI 方式无法注入自定义 host import）。
+
+因此在 demo 里，“WASI Bash” 与 “WASI netFetch” 是分开的开关；在 Node demo 中开启 netFetch 会强制使用 in-process runner。
+
 Bubblewrap（`bwrap`）本质是一个 **进程沙箱**：它自己并不会“运行工具”，而是把某个程序（例如 `wasmtime`，或未来的 native runner）包起来，并限制它能看到的文件系统/网络等。
 
 因此：在当前实现里开启 Bubblewrap 时，链路里仍然会出现 `wasmtime` —— 这是刻意的设计选择，因为 WASI 仍是执行引擎，用来保证浏览器/服务器的工具语义尽量一致。
