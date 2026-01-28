@@ -175,33 +175,59 @@ export async function execSequence(
     out0: { stdout: string; stderr: string },
     ctx: { cwd: string; lastExitCode: number },
   ): Promise<{ stdout: string; stderr: string }> => {
-    let stdout = out0.stdout;
-    let stderr = out0.stderr;
+    type Sink =
+      | { kind: "capture"; stream: "stdout" | "stderr" }
+      | { kind: "file"; path: string; append: boolean };
+
+    const stdoutSink: Sink = { kind: "capture", stream: "stdout" };
+    const stderrSink: Sink = { kind: "capture", stream: "stderr" };
+
+    let fd1: Sink = stdoutSink;
+    let fd2: Sink = stderrSink;
 
     for (const r of redirs) {
+      if (r.kind === "out" || r.kind === "append") {
+        const [p0] = await tokenToWords(r.path, env, workspace, ctx.cwd, ctx.lastExitCode, runCommand);
+        fd1 = { kind: "file", path: p0, append: r.kind === "append" };
+        continue;
+      }
+      if (r.kind === "err" || r.kind === "errAppend") {
+        const [p0] = await tokenToWords(r.path, env, workspace, ctx.cwd, ctx.lastExitCode, runCommand);
+        fd2 = { kind: "file", path: p0, append: r.kind === "errAppend" };
+        continue;
+      }
       if (r.kind === "errToOut") {
-        stdout += stderr;
-        stderr = "";
+        // NOTE: ordering matters; this copies fd1 "as of now".
+        fd2 = fd1;
+        continue;
+      }
+    }
+
+    const pieces = new Map<Sink, string>();
+    pieces.set(fd1, (pieces.get(fd1) ?? "") + out0.stdout);
+    pieces.set(fd2, (pieces.get(fd2) ?? "") + out0.stderr);
+
+    let stdout = "";
+    let stderr = "";
+
+    for (const [sink, data] of pieces.entries()) {
+      if (!data) continue;
+
+      if (sink.kind === "capture") {
+        if (sink.stream === "stdout") stdout += data;
+        else stderr += data;
         continue;
       }
 
-      if (r.kind === "out" || r.kind === "append" || r.kind === "err" || r.kind === "errAppend") {
-        const [p0] = await tokenToWords(r.path, env, workspace, ctx.cwd, ctx.lastExitCode, runCommand);
-        const data = new TextEncoder().encode(r.kind === "out" || r.kind === "append" ? stdout : stderr);
-
-        const isAppend = r.kind === "append" || r.kind === "errAppend";
-        if (isAppend) {
-          const existing = await workspace.readFile(p0).catch(() => new Uint8Array());
-          const combined = new Uint8Array(existing.byteLength + data.byteLength);
-          combined.set(existing, 0);
-          combined.set(data, existing.byteLength);
-          await workspace.writeFile(p0, combined);
-        } else {
-          await workspace.writeFile(p0, data);
-        }
-
-        if (r.kind === "out" || r.kind === "append") stdout = "";
-        else stderr = "";
+      const bytes = new TextEncoder().encode(data);
+      if (sink.append) {
+        const existing = await workspace.readFile(sink.path).catch(() => new Uint8Array());
+        const combined = new Uint8Array(existing.byteLength + bytes.byteLength);
+        combined.set(existing, 0);
+        combined.set(bytes, existing.byteLength);
+        await workspace.writeFile(sink.path, combined);
+      } else {
+        await workspace.writeFile(sink.path, bytes);
       }
     }
 
